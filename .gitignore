@@ -1,0 +1,4 @@
+# 只公開原型本身
+*
+!index.html
+!.gitignore

@@ -1,0 +1,1545 @@
+<title>助理上架審核流程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: 文件頁籤（目標／流程／原型／取捨）。原型頁 = 上層「擁有者視角」控制台（組織層）＋ 下層仿平台畫面（成員層） */
+/* 只做淺色：MaiAgent 後台只有淺色版。色彩與尺寸取自後台實際樣式（主色 #0960bd、側欄 #f5f7fa、卡片圓角 12px、按鈕圓角 8px、Inter） */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --fg: #1f1f1f;
+  --fg-2: #595959;
+  --muted: #8c8c8c;
+  --group: #9ca3af;
+  --line: #e6e9ef;
+  --line-strong: #d9d9d9;
+  --accent: #0960bd;
+  --accent-fg: #ffffff;
+  --accent-soft: #e6eff8;
+  --accent-bd: #91caff;
+  --info-bg: #e6f4ff;
+  --banner: #4f46e5;
+  --banner-fg: #ffffff;
+  --newmark: #ea580c;
+  --warn: #f59e0b;
+  --danger: #ff4d4f;
+  --anno: #8a5300;
+  --chip-p-fg: #7b3fd6; --chip-p-bg: #efe6fd; --chip-o-fg: #b06b00; --chip-o-bg: #fdf0d8;
+  --ask: #4f46e5;
+  --anno-bg: #fffbe6;
+  --draft-fg: #595959;  --draft-bg: #fafafa;  --draft-bd: #d9d9d9;
+  --pend-fg: #d48806;   --pend-bg: #fffbe6;   --pend-bd: #ffe58f;
+  --rej-fg: #cf1322;    --rej-bg: #fff2f0;    --rej-bd: #ffccc7;
+  --pub-fg: #389e0d;    --pub-bg: #f6ffed;    --pub-bd: #b7eb8f;
+  --r-card: 12px;
+  --r-btn: 8px;
+  --r-item: 6px;
+  --shadow-card: 0 1px 2px rgba(16,24,40,.05), 0 2px 6px rgba(16,24,40,.05);
+  --shadow-btn: 0 2px 4px -1px rgba(0,0,0,.1);
+  --shadow: 0 6px 16px rgba(0,0,0,.08), 0 3px 6px -4px rgba(0,0,0,.12);
+  --font-body: "Inter", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", "PingFang TC", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; line-height: 1.6; }
+h1, h2, h3, h4 { text-wrap: balance; line-height: 1.3; margin: 0; }
+p { margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* ---------- 頁首與頁籤 ---------- */
+.site { max-width: 1320px; margin: 0 auto; padding-inline: 20px; padding-block: 24px 64px; }
+.masthead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.masthead .eyebrow { font-size: 12px; letter-spacing: .08em; color: var(--muted); }
+.masthead h1 { font-size: 26px; font-weight: 700; margin-top: 2px; }
+.masthead .meta { display: grid; justify-items: end; gap: 4px; font-size: 12px; color: var(--muted); }
+.concept { font-size: 12px; color: var(--muted); border: 1px dashed var(--line); padding: 4px 10px; border-radius: 4px; }
+.tabs { display: flex; gap: 4px; margin-top: 16px; overflow-x: auto; scrollbar-width: thin; }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 14px; color: var(--muted); white-space: nowrap; font-weight: 500; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tabs .num { font-family: var(--font-mono); font-size: 12px; margin-right: 6px; }
+.panel { padding-top: 28px; }
+.panel > * + * { margin-top: 28px; }
+.panel > [hidden]:first-child + * { margin-top: 0; }
+.lede { max-width: 70ch; color: var(--muted); }
+.section-h { font-size: 19px; font-weight: 700; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.section-h small { font-size: 13px; color: var(--muted); font-weight: 400; }
+.scroll-x { overflow-x: auto; }
+
+/* ---------- 文件表格 ---------- */
+.tbl { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); font-size: 14px; }
+.tbl th, .tbl td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.tbl thead th { background: var(--surface-2); font-weight: 500; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.tbl tbody th { font-weight: 500; white-space: nowrap; }
+.tbl .none { color: var(--muted); }
+.tbl tr.leave-row td, .tbl tr.leave-row th { background: var(--accent-soft); }
+
+/* ---------- 狀態標籤（平台的 Tag 樣式） ---------- */
+.tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 400; line-height: 20px; padding: 0 7px; border-radius: 4px; border: 1px solid; white-space: nowrap; }
+.tag-draft { color: var(--draft-fg); background: var(--draft-bg); border-color: var(--draft-bd); }
+.tag-pending { color: var(--pend-fg); background: var(--pend-bg); border-color: var(--pend-bd); }
+.tag-rejected { color: var(--rej-fg); background: var(--rej-bg); border-color: var(--rej-bd); }
+.tag-published { color: var(--pub-fg); background: var(--pub-bg); border-color: var(--pub-bd); }
+.tag-new { color: var(--accent); background: var(--info-bg); border-color: var(--accent-bd); font-weight: 500; }
+.tag-plain { color: var(--fg-2); background: var(--surface-2); border-color: var(--line-strong); }
+
+/* ---------- 02 泳道與狀態圖 ---------- */
+.lanes { display: grid; grid-template-columns: 64px repeat(4, minmax(160px, 1fr)); min-width: 860px; border: 1px solid var(--line); background: var(--surface); font-size: 13.5px; }
+.lanes > div { padding: 10px 12px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); }
+.lanes > .lh { background: var(--surface-2); font-weight: 500; font-size: 13px; color: var(--muted); }
+.lanes > .lh small { display: block; font-weight: 400; font-size: 11.5px; }
+.lanes > .step { border-left: 0; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.lanes .act { background: var(--surface-2); border-radius: 4px; padding: 8px 10px; }
+.lanes .act.sys { background: var(--accent-soft); }
+.lanes .act b { font-weight: 500; }
+.lanes .branch { grid-column: 1 / -1; border-left: 0; font-size: 12px; color: var(--muted); background: var(--bg); padding: 6px 12px; }
+.sd { width: 100%; min-width: 700px; height: auto; display: block; background: var(--surface); border: 1px solid var(--line); }
+.sd text { fill: var(--fg); font-family: var(--font-body); font-size: 13px; }
+.sd .lbl { fill: var(--muted); font-size: 12px; }
+.sd .edge { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.sd .arrowhead { fill: var(--muted); }
+.sd .st-draft rect { fill: var(--draft-bg); stroke: var(--draft-fg); }
+.sd .st-pending rect { fill: var(--pend-bg); stroke: var(--pend-fg); }
+.sd .st-rejected rect { fill: var(--rej-bg); stroke: var(--rej-fg); }
+.sd .st-published rect { fill: var(--pub-bg); stroke: var(--pub-fg); }
+.sd .st-name { font-weight: 700; font-size: 14px; }
+.sd .lane { fill: none; stroke: var(--line); }
+.sd .lane-h { fill: var(--surface-2); stroke: var(--line); }
+.sd .role { font-weight: 700; font-size: 14px; }
+.sd .back { stroke-dasharray: 5 4; }
+.sd .edge.rej { stroke: var(--rej-fg); }
+.sd .arrowhead.rej { fill: var(--rej-fg); }
+.rule { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; background: var(--surface); border: 1px solid var(--line); padding: 14px 16px; font-size: 14px; }
+.rule code { font-family: var(--font-mono); font-size: 13px; background: var(--surface-2); padding: 3px 8px; border-radius: 3px; }
+
+/* ---------- 04 設計與取捨理由 ---------- */
+.essay { max-width: 760px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card); padding: 32px 40px 40px; }
+.essay h2 { font-size: 24px; font-weight: 700; margin-bottom: 16px; }
+.essay h3 { font-size: 17px; font-weight: 600; margin: 32px 0 10px; padding-top: 24px; border-top: 1px solid var(--line); }
+.essay h4 { font-size: 15px; font-weight: 600; margin: 20px 0 6px; }
+.essay p, .essay li { font-size: 15px; line-height: 1.8; color: var(--fg); }
+.essay p + p { margin-top: 8px; }
+.essay p b { display: inline-block; min-width: 4.5em; font-weight: 600; color: var(--accent); font-size: 13.5px; }
+.essay ol, .essay ul { margin: 6px 0 8px; padding-left: 1.4em; display: grid; gap: 2px; }
+@media (max-width: 760px) { .essay { padding: 22px 18px 28px; } }
+
+/* ---------- 01 / 04 ---------- */
+.outline { display: grid; gap: 10px; max-width: 880px; }
+.outline-item { background: var(--surface); border: 1px solid var(--line); padding: 14px 16px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+.outline-item .k { font-family: var(--font-mono); font-size: 13px; color: var(--accent); padding-top: 2px; }
+.outline-item h3 { font-size: 15px; font-weight: 500; }
+.outline-item p { color: var(--muted); font-size: 14px; grid-column: 2; }
+.nongoal { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.nongoal li { font-size: 13px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); background: var(--surface); }
+.rules { margin: 10px 0 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: 14px; color: var(--muted); max-width: 880px; }
+
+/* ---------- 03 擁有者視角（組織層）：沿用平台卡片、按鈕、開關、提示框樣式 ---------- */
+.console { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card); }
+.c-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+.c-head h2 { font-size: 16px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.c-head .who-me { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg-2); }
+.c-head .who-me i { width: 26px; height: 26px; border-radius: 50%; background: var(--banner); color: var(--banner-fg); display: grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 600; }
+.c-head .sub { font-size: 12.5px; color: var(--muted); }
+.clock { margin-left: auto; font-size: 12.5px; color: var(--fg-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-item); padding: 3px 10px; }
+.c-body { padding: 16px 20px 18px; display: grid; gap: 14px; }
+.c-label { font-size: 12px; color: var(--group); margin-bottom: -6px; }
+.overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ov { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-card); padding: 14px 16px; display: grid; gap: 8px; font-size: 13px; align-content: start; box-shadow: var(--shadow-card); transition: border-color .15s, box-shadow .15s; }
+.ov:hover { border-color: var(--accent-bd); }
+.ov[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.ov .who { display: flex; align-items: center; gap: 10px; }
+.ov .av { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 600; font-size: 13px; flex: none; }
+.ov .nm2 { display: grid; line-height: 1.35; min-width: 0; }
+.ov .nm2 b { font-size: 14px; font-weight: 600; }
+.ov .nm2 small { color: var(--muted); font-size: 12px; }
+.ov .who .dot { margin-left: auto; }
+.ov .role { font-family: var(--font-mono); font-size: 11px; color: var(--fg-2); background: var(--surface-2); border-radius: 4px; padding: 2px 6px; justify-self: start; }
+.ov .line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--fg-2); }
+.ov .cur { font-size: 11px; color: var(--accent); }
+.console-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.dot { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; line-height: 18px; text-align: center; font-weight: 500; }
+.btn { height: 32px; border: 1px solid var(--line-strong); background: var(--surface); padding: 0 15px; border-radius: var(--r-btn); font-size: 14px; display: inline-flex; align-items: center; gap: 6px; transition: color .15s, border-color .15s; white-space: nowrap; }
+.btn:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 500; box-shadow: var(--shadow-btn); }
+.btn.primary:hover:not(:disabled) { color: var(--accent-fg); filter: brightness(1.1); }
+.btn.danger { color: var(--danger); border-color: var(--danger); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.switch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; user-select: none; }
+.switch input { width: 44px; height: 22px; appearance: none; background: var(--line-strong); border-radius: 11px; position: relative; cursor: pointer; transition: background .2s; margin: 0; flex: none; }
+.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,35,11,.2); transition: transform .2s; }
+.switch input:checked { background: var(--accent); }
+.switch input:checked::after { transform: translateX(22px); }
+.vsep { width: 1px; height: 20px; background: var(--line); }
+.hint { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; background: var(--info-bg); border: 1px solid var(--accent-bd); padding: 9px 14px; border-radius: var(--r-btn); }
+.hint .ic { color: var(--accent); display: grid; place-items: center; padding-top: 2px; }
+.hint b { color: var(--fg); white-space: nowrap; font-weight: 500; }
+.hint .ht { flex: 1; min-width: 0; }
+.hint .g-go { height: 28px; padding: 0 12px; font-size: 13px; margin-top: -3px; }
+/* 步驟引導 */
+.guide-target { outline: 2px dashed var(--newmark) !important; outline-offset: 3px; animation: gpulse 1.8s ease-out infinite; }
+@keyframes gpulse { 0% { box-shadow: 0 0 0 0 rgba(234,88,12,.35); } 70% { box-shadow: 0 0 0 10px rgba(234,88,12,0); } 100% { box-shadow: 0 0 0 0 rgba(234,88,12,0); } }
+#guide { position: absolute; z-index: 25; width: 300px; max-width: calc(100vw - 16px); background: rgba(0,0,0,.86); color: #fff; border-radius: var(--r-btn); padding: 10px 14px 12px; box-shadow: 0 6px 16px rgba(0,0,0,.18); pointer-events: none; display: grid; gap: 4px; font-size: 13.5px; line-height: 1.6; }
+#guide[hidden] { display: none; }
+#guide.floating { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: auto !important; top: auto !important; pointer-events: auto; }
+#guide .g-next { color: #fdba74; font-weight: 700; font-size: 12.5px; letter-spacing: .04em; }
+#guide .g-dir { color: #d1d5db; font-size: 12.5px; }
+#guide .g-jump { justify-self: start; margin-top: 4px; background: #fff; color: #1f1f1f; border: 0; border-radius: 6px; padding: 3px 12px; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+#guide .g-jump:focus-visible { outline: 2px solid #fdba74; outline-offset: 2px; }
+#guide .g-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#guide .g-new { font-size: 11.5px; background: #e6f4ff; color: #0958d9; border-radius: 4px; padding: 1px 7px; }
+#guide b { font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .guide-target { animation: none; } }
+.layer-label { font-size: 12px; color: var(--group); margin: 20px 0 8px; display: flex; gap: 8px; align-items: center; }
+.layer-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* ---------- 03 仿平台畫面（成員層） ---------- */
+.mp { border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden; box-shadow: var(--shadow); background: var(--bg); }
+.mp-banner { background: var(--banner); color: var(--banner-fg); font-size: 14px; text-align: center; padding: 10px 24px; font-weight: 500; }
+.mp-body { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 660px; }
+.mp-side { background: var(--surface); border-right: 1px solid var(--line); padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+.mp-logo { display: flex; align-items: center; gap: 8px; padding: 4px 10px 14px; font-weight: 700; font-size: 15px; letter-spacing: .06em; color: var(--accent); }
+.mp-logo i { width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, var(--accent), var(--banner)); color: #fff; display: grid; place-items: center; font-style: normal; font-size: 12px; letter-spacing: 0; }
+.mp-org { display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--line-strong); border-radius: var(--r-btn); padding: 6px 12px; font-size: 14px; margin: 0 2px 10px; background: var(--surface); }
+.mp-org small { color: var(--muted); }
+.mp-side .nv { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-radius: var(--r-item); padding: 9px 12px; font-size: 14px; color: var(--fg); }
+.mp-side .nv:hover:not(:disabled) { background: var(--bg); }
+.mp-side .nv[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.mp-side .nv:disabled { color: var(--muted); cursor: default; }
+.mp-side .nv .dot { margin-left: auto; }
+.mp-side .grp { display: flex; align-items: center; gap: 10px; font-size: 14px; padding: 9px 12px 4px; }
+.mp-side .sub { padding-left: 34px; }
+.mp-main { display: flex; flex-direction: column; min-width: 0; }
+.mp-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 0 20px; background: var(--surface); border-bottom: 1px solid var(--line); position: relative; }
+.crumb { font-size: 14px; color: var(--muted); min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.crumb > :last-child { color: var(--fg); }
+.crumb button { background: none; border: 0; padding: 0; color: var(--muted); font-size: 14px; }
+.crumb button:hover { color: var(--accent); }
+.mp-tools > * { white-space: nowrap; flex: none; }
+.mp-tools { display: flex; align-items: center; gap: 16px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.mp-tools .ext { opacity: .8; }
+.mp-tools .ask { color: var(--ask); }
+.bell { position: relative; background: none; border: 0; width: 32px; height: 32px; display: grid; place-items: center; color: var(--fg); border-radius: var(--r-item); }
+.bell:hover { background: var(--surface-2); }
+.bell .dot { position: absolute; top: -2px; right: -4px; }
+.me { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 400; color: var(--fg); }
+.me i { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); display: grid; place-items: center; font-style: normal; font-weight: 600; font-size: 12px; }
+.me b { display: block; font-weight: 600; line-height: 1.2; }
+.me small { display: block; color: var(--muted); font-size: 11px; line-height: 1.3; font-family: var(--font-mono); }
+.mp-content { padding: 20px; display: grid; gap: 16px; align-content: start; }
+.card-box { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card); padding: 20px 24px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+
+/* 通知中心 */
+.bell-wrap { position: relative; display: inline-flex; }
+.notif { position: absolute; right: -8px; top: 42px; width: 380px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 10px; z-index: 6; }
+.notif h4 { font-size: 14px; padding: 14px 18px 4px; }
+.ntabs { display: flex; gap: 18px; padding: 8px 18px 0; border-bottom: 1px solid var(--line); }
+.ntabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 0; font-size: 13px; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; }
+.ntabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+.nlist { list-style: none; margin: 0; padding: 0; max-height: 330px; overflow-y: auto; }
+.nlist li > button, .nlist li > div { display: grid; grid-template-columns: 30px 1fr; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 12px 18px; font-size: 13px; }
+.nlist li > button:hover { background: var(--surface-2); }
+.nlist .ic { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.nlist .t { font-weight: 500; display: flex; gap: 6px; align-items: flex-start; justify-content: space-between; }
+.nlist .unread .t::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); flex: none; margin-top: 6px; }
+.nlist time { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.nlist .d { color: var(--muted); font-size: 12.5px; }
+.nfoot { display: flex; justify-content: flex-end; padding: 8px 18px; }
+.nfoot button { background: none; border: 0; color: var(--accent); font-size: 12.5px; }
+.notif { white-space: normal; color: var(--fg); font-weight: 400; text-align: left; }
+.notif .nlist .t { color: var(--fg); font-weight: 500; }
+.notif .nlist .d { color: var(--fg-2); font-weight: 400; }
+.nempty { padding: 24px 18px; color: var(--muted); font-size: 13px; }
+
+/* 表格（平台） */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar .fake { border: 1px solid var(--line-strong); border-radius: var(--r-btn); padding: 6px 10px; font-size: 13px; color: var(--muted); background: var(--surface); min-width: 150px; }
+.toolbar .grow { flex: 1; }
+.mt-wrap { overflow-x: auto; padding: 14px 6px 4px; margin: -14px -6px -4px; scrollbar-width: thin; }
+.mt th:last-child, .mt td:last-child { position: sticky; right: 0; background: var(--surface); box-shadow: -1px 0 0 var(--line), -8px 0 8px -6px rgba(16,24,40,.12); z-index: 1; }
+.mt th:last-child { background: var(--surface-2); }
+.mt tr:hover td:last-child { background: var(--surface-2); }
+.mt { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 860px; }
+.mt th { background: var(--surface-2); font-weight: 600; color: var(--fg); border-bottom: 1px solid var(--line); font-size: 13px; text-align: left; padding: 10px 12px; white-space: nowrap; }
+.mt td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.mt tr:hover td { background: var(--surface-2); }
+.mt .link { background: none; border: 0; padding: 0; color: var(--fg); font-weight: 500; text-align: left; }
+.mt .link:hover { color: var(--accent); }
+.kchip { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.ops { display: flex; gap: 10px; }
+.ops button { background: none; border: 0; padding: 2px; color: var(--accent); }
+.ops button.del { color: var(--danger); }
+.ops button:disabled { opacity: .4; cursor: not-allowed; }
+.pager { display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.pager b { background: var(--accent); color: var(--accent-fg); border-radius: 4px; padding: 0 8px; font-weight: 500; }
+
+/* 新增元件標示 */
+.nm { position: relative; }
+body.show-newmark .nm { outline: 1.5px dashed var(--newmark); outline-offset: 3px; border-radius: 4px; }
+body.show-newmark .nm::after { content: "新增"; position: absolute; top: -10px; right: -6px; font-size: 10.5px; line-height: 1; padding: 3px 5px; border-radius: 3px; background: var(--newmark); color: #fff; font-weight: 500; letter-spacing: .04em; z-index: 2; pointer-events: none; }
+body.show-newmark .nm.inl::after { top: 50%; right: auto; left: calc(100% + 6px); transform: translateY(-50%); }
+body.show-newmark .nm.inl { margin-right: 40px; }
+.anno { display: block; font-size: 12px; line-height: 1.5; color: var(--anno); background: var(--anno-bg); border-left: 3px solid var(--anno); padding: 5px 9px; border-radius: 0 3px 3px 0; }
+.anno b { font-family: var(--font-mono); margin-right: 6px; }
+body:not(.show-anno) .anno { display: none; }
+
+/* 狀態列、審核列 */
+.sbar { border-radius: var(--r-btn); border: 1px solid transparent; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; font-size: 14px; }
+.sbar .msg { display: grid; gap: 2px; min-width: 0; }
+.sbar b { font-weight: 700; }
+.sbar.draft { background: var(--draft-bg); color: var(--fg-2); border-color: var(--draft-bd); }
+.sbar.pending { background: var(--pend-bg); color: var(--fg); border-color: var(--pend-bd); }
+.sbar.rejected { background: var(--rej-bg); color: var(--fg); border-color: var(--rej-bd); }
+.sbar.published { background: var(--pub-bg); color: var(--fg); border-color: var(--pub-bd); }
+.sbar.info { background: var(--info-bg); color: var(--fg); border-color: var(--accent-bd); }
+.sbar blockquote { margin: 4px 0 0; padding: 8px 12px; background: var(--surface); color: var(--fg); border-radius: 4px; }
+.sbar .lnk { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; font-size: 13px; white-space: nowrap; }
+.rbar { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow-card); padding: 14px; display: grid; gap: 10px; }
+.rbar .top { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; }
+.rbar .diff { background: var(--pend-bg); color: var(--fg); border: 1px solid var(--pend-bd); border-radius: var(--r-btn); padding: 8px 12px; font-size: 13.5px; }
+.rbar .diff ul { margin: 2px 0 0; padding-left: 1.2em; }
+.reject-box { border: 1px solid var(--rej-fg); border-radius: 6px; padding: 12px; display: grid; gap: 8px; }
+.reject-box textarea { width: 100%; min-height: 76px; border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; background: var(--surface); resize: vertical; }
+.help { font-size: 12px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font-size: 12.5px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 14px; padding: 3px 10px; }
+.chip:hover { border-color: var(--accent); }
+
+/* 助理設定頁 */
+.ptabs { display: flex; gap: 26px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; }
+.ptabs span { padding: 0 0 10px; font-size: 14px; color: var(--muted); white-space: nowrap; }
+.ptabs span.on { color: var(--accent); border-bottom: 2px solid var(--accent); font-weight: 500; }
+.ptabs span .c { font-size: 11px; background: var(--surface-2); border-radius: 8px; padding: 0 6px; margin-left: 4px; }
+.cfg { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
+.cfg-nav { display: grid; gap: 1px; font-size: 14px; }
+.cfg-nav .fake-search { border: 1px solid var(--line-strong); border-radius: var(--r-btn); padding: 6px 10px; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.cfg-nav .g { font-size: 12px; color: var(--group); padding: 10px 12px 4px; border-top: 1px solid var(--line); }
+.cfg-nav .g:first-of-type { border-top: 0; }
+.cfg-nav button { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: none; border: 0; border-radius: var(--r-item); padding: 8px 12px; text-align: left; font-size: 14px; }
+.cfg-nav button:hover:not(:disabled) { background: var(--surface-2); }
+.cfg-nav button[aria-current="true"] { background: var(--accent-soft); color: var(--accent); }
+.cfg-nav button:disabled { cursor: default; color: var(--muted); }
+.cfg-nav button:disabled .r { opacity: .7; }
+.cfg-nav .r { font-size: 12px; color: var(--muted); }
+.cfg-nav .r.unset { color: var(--warn); }
+.cfg-body { display: grid; gap: 16px; min-width: 0; }
+.field { display: grid; gap: 6px; }
+.field > label, .field > .fl { font-size: 14px; font-weight: 500; }
+.field > label .req, .field > .fl .req { color: var(--danger); margin-right: 3px; }
+.field input, .field textarea, .field select { width: 100%; border: 1px solid var(--line-strong); border-radius: var(--r-btn); background: var(--surface); padding: 8px 10px; font-size: 14px; resize: vertical; }
+.field input[readonly], .field textarea[readonly] { background: var(--surface-2); }
+.fakeselect { border: 1px solid var(--line-strong); border-radius: var(--r-btn); padding: 8px 10px; font-size: 14px; display: flex; gap: 8px; align-items: center; background: var(--surface); flex-wrap: wrap; }
+.fakeselect small { color: var(--muted); }
+.mini { font-size: 11px; padding: 1px 6px; border-radius: 3px; }
+.mini.p { background: var(--chip-p-bg); color: var(--chip-p-fg); }
+.mini.o { background: var(--chip-o-bg); color: var(--chip-o-fg); }
+.infobox { border: 1px solid var(--accent-bd); background: var(--info-bg); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; display: grid; gap: 4px; }
+.infobox b { color: var(--accent); }
+.modes { display: grid; gap: 10px; }
+.mode { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; grid-template-columns: 18px 1fr; gap: 4px 10px; font-size: 13.5px; }
+.mode.on { border-color: var(--accent); background: var(--accent-soft); }
+.mode i { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--line); margin-top: 4px; }
+.mode.on i { border: 4px solid var(--accent); }
+.mode b { font-size: 15px; }
+.mode span { grid-column: 2; color: var(--muted); }
+.kblist { display: grid; gap: 8px; }
+.kbrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 9px 12px; font-size: 14px; }
+.kbrow > span { display: inline-flex; gap: 8px; align-items: center; }
+.kbrow .x { background: none; border: 0; color: var(--muted); }
+.kbrow .x:hover { color: var(--danger); }
+.transfer { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: start; }
+.tcol { border: 1px solid var(--line); border-radius: 6px; min-height: 150px; }
+.tcol header { display: flex; justify-content: space-between; padding: 8px 12px; font-size: 13px; font-weight: 500; border-bottom: 1px solid var(--line); }
+.tcol header small { color: var(--muted); font-weight: 400; }
+.tcol div { padding: 9px 12px; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+.tmid { display: grid; gap: 8px; padding-top: 44px; }
+.tmid span { border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 12.5px; color: var(--muted); opacity: .6; white-space: nowrap; }
+.cfg-foot { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; align-items: center; padding-top: 4px; }
+
+/* Agent 市集 */
+.mtabs { display: flex; gap: 8px; }
+.mtabs button { border: 0; border-radius: 6px; padding: 7px 16px; background: var(--surface-2); font-size: 14px; }
+.mtabs button.on { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.mhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.mhead h2 { font-size: 22px; font-weight: 700; }
+.msec { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; font-size: 13px; color: var(--muted); padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.msec b { font-size: 15px; color: var(--fg); }
+.agents { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.agent { background: var(--surface-2); border-radius: 12px; padding: 18px; display: grid; gap: 10px; align-content: start; position: relative; }
+.agent .ico { width: 38px; height: 38px; border-radius: 10px; background: var(--surface); color: var(--accent); display: grid; place-items: center; }
+.agent h3 { font-size: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-right: 22px; }
+.agent p { font-size: 13px; color: var(--muted); }
+.agent .meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--muted); }
+.agent .meta span { background: var(--surface); border-radius: 4px; padding: 2px 8px; }
+.agent .foot { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+.agent .star { position: absolute; top: 16px; right: 16px; color: var(--muted); }
+.empty-state { border: 1px dashed var(--line); border-radius: 8px; padding: 28px; text-align: center; color: var(--muted); font-size: 14px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; max-width: 640px; }
+.err { font-size: 12.5px; color: var(--rej-fg); }
+
+/* 抽屜、對話框、提示 */
+.drawer-back { position: fixed; inset: 0; background: rgba(10,14,22,.35); z-index: 18; display: flex; justify-content: flex-end; }
+.drawer { width: min(380px, 100%); height: 100%; background: var(--surface); box-shadow: var(--shadow); padding: 20px; overflow-y: auto; display: grid; gap: 14px; align-content: start; }
+.drawer header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.drawer h3 { font-size: 16px; }
+.timeline { list-style: none; margin: 0; padding: 0 0 0 16px; border-left: 1px solid var(--line); display: grid; gap: 14px; font-size: 13.5px; }
+.timeline li { position: relative; }
+.timeline li::before { content: ""; position: absolute; left: -20.5px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--accent); }
+.timeline time { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); display: block; }
+.timeline .note { color: var(--muted); }
+.modal-back { position: fixed; inset: 0; background: rgba(10,14,22,.45); display: grid; place-items: center; padding: 16px; z-index: 20; }
+.modal { background: var(--surface); border-radius: 10px; width: min(500px, 100%); box-shadow: var(--shadow); display: grid; gap: 14px; padding: 20px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.modal h3 { font-size: 17px; }
+.modal .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; background: var(--surface-2); padding: 12px 14px; border-radius: 6px; margin: 0; }
+.modal .kv dt { color: var(--muted); }
+.modal .kv dd { margin: 0; }
+.modal ol { margin: 0; padding-left: 1.3em; font-size: 14px; display: grid; gap: 4px; }
+.modal .foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.pick { display: grid; gap: 6px; }
+.pick button { display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 9px 12px; font-size: 14px; text-align: left; }
+.pick button > span { display: inline-flex; gap: 8px; align-items: center; }
+.pick button:hover { border-color: var(--accent); }
+.chat { display: grid; gap: 10px; font-size: 14px; }
+.chat .q, .chat .a { padding: 10px 12px; border-radius: 8px; max-width: 88%; }
+.chat .q { background: var(--accent); color: var(--accent-fg); justify-self: end; }
+.chat .a { background: var(--surface-2); }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 6px; font-size: 14px; z-index: 30; max-width: calc(100vw - 32px); }
+
+@media (max-width: 1280px) {
+  .vsep { display: none; }
+}
+@media (max-width: 1100px) {
+  .mp-tools .ext, .me small { display: none; }
+}
+@media (max-width: 1000px) {
+  .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cfg { grid-template-columns: minmax(0, 1fr); }
+  .cfg-nav { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
+  .cfg-nav .g, .cfg-nav .fake-search, .cfg-nav .r, .cfg-nav button:disabled { display: none; }
+  .cfg-nav button { white-space: nowrap; flex: none; }
+}
+@media (max-width: 760px) {
+  .site { padding-inline: 16px; }
+  .mp-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 0; }
+  .mp-side { scrollbar-width: thin; }
+  .bell-wrap { position: static; }
+  .notif { left: 8px; right: 8px; width: auto; max-width: none; top: 52px; }
+  .mp-tools { gap: 10px; }
+  .mp-side { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px; align-items: center; }
+  .mp-logo, .mp-org, .mp-side .grp { display: none; }
+  .mp-side .nv { white-space: nowrap; width: auto; }
+  .mp-side .sub { padding-left: 10px; }
+  .mp-tools .ext, .mp-tools .ask, .me span { display: none; }
+  .clock { margin-left: 0; width: 100%; }
+  .overview { grid-template-columns: minmax(0, 1fr); }
+  .transfer { grid-template-columns: minmax(0, 1fr); }
+  .tmid { padding-top: 0; grid-auto-flow: column; justify-content: start; }
+  .mp-content { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="site">
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">宏昇精密工業（虛構）· AI 助理平台導入</div>
+      <h1>助理上架審核流程</h1>
+    </div>
+    <div class="meta">
+      <span>提案：戴大詠</span>
+      <span class="concept">概念原型，依 MaiAgent 現有平台架構設計，非官方畫面</span>
+    </div>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="文件頁籤">
+    <button role="tab" data-tab="goals" aria-selected="false"><span class="num">01</span>目標分析</button>
+    <button role="tab" data-tab="flow" aria-selected="false"><span class="num">02</span>流程與狀態</button>
+    <button role="tab" data-tab="proto" aria-selected="false"><span class="num">03</span>互動原型</button>
+    <button role="tab" data-tab="tradeoffs" aria-selected="false"><span class="num">04</span>設計與取捨理由</button>
+  </nav>
+
+  <!-- 01 目標分析 -->
+  <section class="panel" id="tab-goals" role="tabpanel" hidden>
+    <div>
+      <h2 class="section-h">重點目標</h2>
+      <p class="lede" style="margin-top:8px">題目要設計的是一條路徑：組員把助理做好、按下送出，到部門同事看得到這個助理。核准只有一層，由直屬主管負責。流程放在平台現有的「組織 › 角色 › 成員」架構裡，沿用 AI 助理、Agent 市集、角色權限這些既有頁面。</p>
+    </div>
+    <div class="scroll-x">
+      <table class="tbl" style="min-width:680px">
+        <thead><tr><th>#</th><th>目標</th><th>題目原文</th><th>設計上的回應</th></tr></thead>
+        <tbody>
+          <tr><th class="mono">G1</th><td>未核准不外流：核准前，除了建立者和審核者，其他人看不到</td><td>「組員做的東西，要主管核准才能給別人用」</td><td>組員不能自己選開放角色；同事只在 Agent 市集看到核准後的部門版</td></tr>
+          <tr><th class="mono">G2</th><td>流程不中斷：主管不在時，送審的助理不會卡住</td><td>「主管請假時，流程不能停」</td><td>請假必須指定職務代理人；審核者依請假狀態即時決定</td></tr>
+          <tr><th class="mono">G3</th><td>只有建立者和審核者知道助理審到哪一步；其他人在上架時才知道</td><td>「組員、主管、部門同事各自會看到的畫面與狀態」</td><td>建立者：審核狀態欄、狀態列；審核者：待我審核徽章、審核通知；部門同事：上架通知、Agent 市集的 NEW 標記</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3 class="section-h" style="font-size:16px">不在這次範圍</h3>
+      <ul class="nongoal" style="margin-top:10px">
+        <li>部門怎麼建</li><li>上下級怎麼分</li><li>其他權限</li><li>改版後重新核准</li><li>多層核准</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 02 流程與狀態 -->
+  <section class="panel" id="tab-flow" role="tabpanel" hidden>
+    <!-- 泳道流程：保留不顯示 -->
+    <div hidden>
+    <div>
+      <h2 class="section-h">從「送出」到「同事看得到」<small>泳道流程</small></h2>
+      <p class="lede" style="margin-top:8px">四條泳道是組員、直屬主管（請假時由職務代理人接手）、系統、部門同事。系統那一欄，是現行做法裡由擁有者在平台外核准後手動執行的步驟，這裡改成核准後自動完成。</p>
+    </div>
+    <div class="scroll-x">
+      <div class="lanes">
+        <div class="lh step"></div>
+        <div class="lh">組員 林雅婷<small class="mono">個人角色：林雅婷</small></div>
+        <div class="lh">直屬主管 陳志明<small>請假時：職務代理人 王建宏</small></div>
+        <div class="lh">系統</div>
+        <div class="lh">部門同事 張家豪<small class="mono">品保部角色</small></div>
+
+        <div class="step">1</div>
+        <div><div class="act">在 AI 助理編輯頁按 <b>送出審核</b><br>確認視窗先寫明這件會由誰審核</div></div>
+        <div></div><div></div><div></div>
+
+        <div class="step">2</div>
+        <div><div class="act">列表「審核狀態」顯示<br><b>審核中・等待 陳志明</b>，設定鎖定</div></div>
+        <div><div class="act">通知中心「審核通知」<br>「審核 › 待我審核」徽章 +1</div></div>
+        <div><div class="act sys">狀態改為 <b>審核中</b><br>依請假狀態決定審核者並通知；開放審核者唯讀檢視這個助理</div></div>
+        <div></div>
+
+        <div class="step">3</div>
+        <div></div>
+        <div><div class="act">在唯讀設定頁檢視名稱、角色指令、知識庫；重送的件標出與上次的差異<br><b>核准並上架</b> 或 <b>退回</b></div></div>
+        <div></div><div></div>
+
+        <div class="branch">分支 A：退回</div>
+        <div class="step">4a</div>
+        <div><div class="act">退回原因顯示在狀態列<br>補上資料（例如在知識庫設定加入「首件檢驗程序」）後重新送出，回到步驟 2</div></div>
+        <div><div class="act">填寫退回原因（必填，可點選常用原因）</div></div>
+        <div><div class="act sys">狀態改為 <b>已退回</b>，通知組員</div></div>
+        <div></div>
+
+        <div class="branch">分支 B：核准</div>
+        <div class="step">4b</div>
+        <div><div class="act">收到核准通知<br>原版留在個人角色，仍可編輯</div></div>
+        <div></div>
+        <div><div class="act sys">複製出 <b>部門版-檢驗 SOP 問答助理</b><br>把部門版的「內部對話」平台分配給品保部角色，只勾 <b>讀取</b><br>狀態改為 <b>已上架</b>，通知組員與部門</div></div>
+        <div><div class="act">通知中心收到「新上架」<br>Agent 市集「組織自建」出現部門版，標 <b>NEW</b>，可以開始對話</div></div>
+
+        <div class="branch">審核中的任何時刻，組員都可以撤回，回到草稿補資料後再送</div>
+      </div>
+    </div>
+    </div>
+
+    <div>
+      <h2 class="section-h">助理的狀態<small>三條泳道是三個角色；狀態放在當下要處理它的人那一道，箭頭上寫「誰：做什麼」</small></h2>
+    </div>
+    <div class="scroll-x">
+      <svg class="sd" viewBox="0 0 860 410" role="img" aria-label="泳道狀態圖，三條泳道依序是組員、直屬主管、部門同事。組員泳道有草稿與已退回；主管泳道有審核中；部門同事泳道有已上架。組員送出審核，草稿進入主管泳道的審核中；主管核准後進入部門同事泳道的已上架；主管退回時倒回組員泳道的已退回，組員補資料後重送回到審核中；審核中組員也可以撤回，倒回草稿。">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path class="arrowhead" d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+          <marker id="ahr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path class="arrowhead rej" d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+        </defs>
+        <text class="lbl" x="16" y="22">只有一層核准：直屬主管。主管請假時，由職務代理人執行同一個「核准／退回」。</text>
+        <!-- 泳道 -->
+        <rect class="lane-h" x="1" y="36" width="160" height="110"/><rect class="lane" x="161" y="36" width="698" height="110"/>
+        <rect class="lane-h" x="1" y="146" width="160" height="110"/><rect class="lane" x="161" y="146" width="698" height="110"/>
+        <rect class="lane-h" x="1" y="256" width="160" height="110"/><rect class="lane" x="161" y="256" width="698" height="110"/>
+        <text class="role" x="16" y="84">組員（建立者）</text><text class="lbl" x="16" y="104">林雅婷・個人角色</text>
+        <text class="role" x="16" y="186">直屬主管</text><text class="lbl" x="16" y="206">陳志明</text><text class="lbl" x="16" y="224">請假時由職務代理人</text>
+        <text class="role" x="16" y="304">部門同事</text><text class="lbl" x="16" y="324">張家豪・品保部角色</text>
+        <!-- 狀態 -->
+        <g class="st-draft"><rect x="190" y="63" width="136" height="56" rx="6" stroke-width="1.5"/><text class="st-name" x="258" y="87" text-anchor="middle">草稿</text><text class="lbl" x="258" y="106" text-anchor="middle">僅建立者可見</text></g>
+        <g class="st-rejected"><rect x="470" y="63" width="136" height="56" rx="6" stroke-width="1.5"/><text class="st-name" x="538" y="87" text-anchor="middle">已退回</text><text class="lbl" x="538" y="106" text-anchor="middle">僅建立者可見</text></g>
+        <g class="st-pending"><rect x="470" y="173" width="136" height="56" rx="6" stroke-width="1.5"/><text class="st-name" x="538" y="197" text-anchor="middle">審核中</text><text class="lbl" x="538" y="216" text-anchor="middle">建立者與主管可檢視</text></g>
+        <g class="st-published"><rect x="690" y="283" width="136" height="56" rx="6" stroke-width="1.5"/><text class="st-name" x="758" y="307" text-anchor="middle">已上架</text><text class="lbl" x="758" y="326" text-anchor="middle">部門版開放給品保部</text></g>
+        <!-- 往前：實線 -->
+        <path class="edge" d="M278,119 L278,187 L468,187" marker-end="url(#ah)"/>
+        <text class="lbl" x="373" y="206" text-anchor="middle">組員：送出審核</text>
+        <path class="edge" d="M556,121 L556,171" marker-end="url(#ah)"/>
+        <text class="lbl" x="566" y="138">組員：補資料後重送</text>
+        <path class="edge" d="M606,201 L758,201 L758,281" marker-end="url(#ah)"/>
+        <text class="lbl" x="682" y="194" text-anchor="middle">主管：核准</text>
+        <text class="lbl" x="682" y="218" text-anchor="middle">（請假時由代理人）</text>
+        <text class="lbl" x="758" y="356" text-anchor="middle">核准後系統自動建立部門版</text>
+        <!-- 倒回建立者：虛線 -->
+        <path class="edge rej back" d="M520,173 L520,121" marker-end="url(#ahr)"/>
+        <text class="lbl" x="510" y="166" text-anchor="end">主管：退回（原因必填）</text>
+        <path class="edge back" d="M468,219 L238,219 L238,121" marker-end="url(#ah)"/>
+        <text class="lbl" x="353" y="236" text-anchor="middle">組員：撤回</text>
+        <text class="lbl" x="190" y="315">上架前，看不到這個助理</text>
+        <text class="lbl" x="16" y="392">實線：往下一步。虛線：倒回建立者（退回、撤回），補資料後再送。改版重審不在本次範圍。</text>
+      </svg>
+    </div>
+
+    <div>
+      <h2 class="section-h">三個角色在每個狀態看到什麼</h2>
+    </div>
+    <div class="scroll-x">
+      <table class="tbl" style="min-width:780px">
+        <thead><tr><th>狀態</th><th>組員（個人角色）</th><th>直屬主管（或職務代理人）</th><th>部門同事（品保部角色）</th></tr></thead>
+        <tbody>
+          <tr><th><span class="tag tag-draft">草稿</span></th><td>AI 助理列表與編輯頁可編輯；權限設定只列得出自己的個人角色</td><td class="none">看不到</td><td class="none">看不到</td></tr>
+          <tr><th><span class="tag tag-pending">審核中</span></th><td>審核狀態「等待 陳志明」；設定鎖定，可撤回</td><td>審核通知；「待我審核」出現這個助理，徽章計數；可開唯讀設定頁</td><td class="none">看不到</td></tr>
+          <tr><th><span class="tag tag-rejected">已退回</span></th><td>狀態列顯示退回原因與退回人；可補資料後重送</td><td>從待審清單移除；重送時看得到與上次的差異</td><td class="none">看不到</td></tr>
+          <tr><th><span class="tag tag-published">已上架</span></th><td>核准通知；狀態列寫明部門版已開放；原版仍可編輯</td><td>從待審清單移除</td><td>上架通知；Agent 市集「組織自建」出現部門版，標 NEW，唯讀使用</td></tr>
+          <tr class="leave-row"><th>主管請假中</th><td>審核者即時改為職務代理人，審核紀錄寫明改派</td><td>主管：提示由代理人處理，只能檢視<br>代理人：「待我審核」出現原本交給主管的助理</td><td class="none">沒有差別</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- 03 互動原型 -->
+  <section class="panel" id="tab-proto" role="tabpanel" hidden>
+    <div class="console" id="console" aria-label="擁有者視角"></div>
+    <div class="layer-label">成員層・切到誰，下方就是誰看到的平台畫面</div>
+    <div class="mp" id="mp"></div>
+  </section>
+
+  <!-- 04 設計與取捨理由 -->
+  <section class="panel" id="tab-tradeoffs" role="tabpanel" hidden>
+    <article class="essay">
+      <h2>設計與取捨理由</h2>
+      <p>這一頁說明我怎麼從題目一路做到原型，以及每個設計背後的考量。</p>
+
+      <h3>設計過程：從題目到原型</h3>
+      <h4>第一步：讀懂題目，再看平台現況（01 目標分析）</h4>
+      <p>我先把題目的要求逐句拆開，整理成三個目標：</p>
+      <ul>
+        <li>G1 &gt; 未核准不外流：核准前，除了建立者和審核者，其他人看不到。</li>
+        <li>G2 &gt; 流程不中斷：主管不在時，送審的助理不會卡住。</li>
+        <li>G3 &gt; 只有建立者和審核者知道助理審到哪一步，其他人在上架時才知道。</li>
+      </ul>
+      <p>題目說不用設計的部分，我另外列成「不在這次範圍」，之後遇到相關問題就以這份清單為準。</p>
+      <p>接著我查了使用手冊，也實際操作平台。因為題目要求「參考目前公司平台架構設計下列功能 Prototyping」，所以我以平台現有的頁面和「組織 › 角色 › 成員」權限架構為基礎，去想審核階段需要補上哪些功能，不另外做一套系統。</p>
+
+      <h4>第二步：先定狀態，再定畫面（02 流程與狀態）</h4>
+      <p>目標確定後，我先想清楚助理會經過哪些狀態、每個狀態又是由誰處理，再整理成 02 頁的兩樣東西：</p>
+      <ul>
+        <li>泳道狀態圖 &gt; 依組員、主管、部門同事分成三道，每個狀態放在當下要處理它的人那一道，看得出助理此刻在誰手上；退回和撤回都倒回組員那一道。</li>
+        <li>角色 × 狀態對照表 &gt; 列出每個狀態下三個角色各自看到什麼，直接對應題目要求的「各自會看到的畫面與狀態」，也是我做原型時的檢查清單。</li>
+      </ul>
+      <p>另外考量到題目要求主管請假時流程不能停，對照表最後一列補上主管請假時的變化：審核改由職務代理人處理，組員的狀態列會寫明改派，部門同事則沒有差別。</p>
+
+      <h4>第三步：把對照表的每一格做成畫面（03 互動原型）</h4>
+      <p>原型以平台現有的頁面為基礎，參考實際的 AI 助理列表、設定頁、Agent 市集和通知中心，只加上審核需要的部分，對照表裡的每一格在原型裡都找得到對應的畫面。</p>
+      <p>原因 &gt; 直接放進現有的平台畫面，比較看得出新增的審核功能實際用起來會是什麼樣子，也能確認有沒有和平台原本的操作衝突。</p>
+      <p>操作方式 &gt; 上方的「擁有者視角」控制台可以切換成組員、主管、代理人、部門同事，也可以開關主管請假，看同一個助理在不同角色、不同狀態下的樣子；打開「步驟引導」，就能跟著提示走完從送審到上架的流程。</p>
+
+      <h3>設計的出發點</h3>
+      <p>依使用手冊，平台目前沒有審核功能，所以我先假設一個情境：品保部的林雅婷做好了一個「檢驗 SOP 問答助理」，想給部門同事用。以現在的平台來說，想像上她得先寄信或走公司內部簽核，請主管陳志明同意；主管同意後，再由平台的擁有者照手冊「複製後鎖定」的做法，複製一份部門版、綁到品保部角色並改成唯讀，同事才看得到。林雅婷自己做不了這一步，因為照手冊的規劃，建立者不隸屬部門角色，權限設定裡列不出品保部角色。</p>
+      <p>這樣的流程，我認為有三個地方會讓人卡住：</p>
+      <ul>
+        <li>不知道審到哪 &gt; 申請在平台外進行，林雅婷送出後只能等，想知道進度只能去問主管；主管那邊也得自己記住還有哪些沒審。</li>
+        <li>核准後又停一次 &gt; 主管同意了，還要等擁有者有空才會手動上架，等於流程停了兩次。</li>
+        <li>核准擋不住分享 &gt; 手冊也提到，如果建立者同時隸屬部門角色，就能自己把助理勾給部門，不需要任何人核准。也就是說，這套申請制完全靠角色有沒有規劃對，平台本身沒有擋。</li>
+      </ul>
+      <p>因此我的想法是，把審核這一段直接搬進平台，同時把「自己勾角色就能分享」這條路關掉。另外題目也給了三條限制：只有一層核准（直屬主管）、核准後才能給別人用、主管請假時流程不能停，後面的每個設計都要同時守住這三條。</p>
+
+      <h4>不改權限模型，只改「誰能綁部門角色」</h4>
+      <p>平台本來就是用「組織 › 角色 › 成員」來決定誰看得到什麼，如果為了審核再另外做一套權限，擁有者等於要多學一套管理方式。所以我保留原本的架構，只控制一件事：部門角色只能透過審核綁上去。這樣平台不需要新增權限類型，擁有者原本的管理習慣也不用改。</p>
+
+      <h4>送審、審核、使用，都放在各角色原本就會用的頁面</h4>
+      <p>考量到三種角色進平台的目的都不一樣，我盡量讓每個人都在原本就會去的地方完成自己的事：</p>
+      <ul>
+        <li>組員 &gt; 在原本建助理的編輯頁直接送審。</li>
+        <li>主管 &gt; 從「待我審核」進去，看到的還是熟悉的設定頁。</li>
+        <li>部門同事 &gt; 在原本找助理的 Agent 市集看到新的部門版。</li>
+      </ul>
+      <p>原因 &gt; 送審對組員來說不是每天都會做的事，如果還要另外學一個新頁面，偶爾用一次反而更容易忘記怎麼操作。</p>
+
+      <h4>主管請假前就指定代理人，審核不會卡住</h4>
+      <p>題目要求主管請假時流程不能停。常見的做法是等卡住了再補救，例如超過幾天沒審就自動轉給上一層，但這樣等於多了一層核准。所以我選擇在主管設定請假的那一刻，就一定要填職務代理人，理論上就不會出現「主管不在、也沒人能審」的情況。</p>
+
+      <h3>取捨理由</h3>
+      <h4>一、送審放在原本做助理的地方</h4>
+      <p>林雅婷做助理的地方是「AI 助理」編輯頁，所以我把送審相關的東西都放在這裡：</p>
+      <ul>
+        <li>送出審核 &gt; 放在編輯頁右下角，就在「儲存」旁邊。</li>
+        <li>審核狀態 &gt; AI 助理列表多一欄，直接寫「等待 陳志明 審核」。</li>
+        <li>狀態列 &gt; 編輯頁上方加一條，顯示目前的狀態；被退回時，退回原因也會顯示在這裡。</li>
+      </ul>
+      <p>原因 &gt; 做助理、測試、送出都在同一頁完成，不用學新系統，也不用另外填表單；列表上直接寫等待誰審核，林雅婷不必點進去就知道助理在誰手上。</p>
+      <p>我也考慮過做一個獨立的「簽核中心」，集中管理雖然比較整齊，但林雅婷就得在兩個地方來回切換，只為了送審這個偶爾才做的動作，負擔反而更重。</p>
+
+      <h4>二、開放給部門，只能透過審核</h4>
+      <p>手冊的「角色權限規劃指南」建議，每位會建助理的人各有一個只綁自己的個人角色，而且不隸屬部門角色。我沿用這個做法，這樣林雅婷在「權限設定」裡只看得到自己的個人角色，列不出品保部角色，助理也就只能透過審核開放給部門。</p>
+      <p>原因 &gt; 手冊提到，建立者如果同時隸屬部門角色，就能自己把助理勾給部門，不需要任何人核准，因為平台沒有「隸屬但不能綁」的設定。這裡不擋住，核准流程就只是形式。</p>
+      <p>我也想過讓組員自己選開放範圍、核准後才生效，但這樣主管連範圍也要審，會碰到題目說不用設計的「其他權限」。</p>
+      <p>補充 &gt; 依手冊，左側選單由角色的功能權限決定，不看職等。我讓直屬主管陳志明也具備 AI 助理功能，部門同事張家豪則只具備使用權限。</p>
+
+      <h4>三、主管核准即上架，照手冊的「複製後鎖定」自動執行</h4>
+      <p>主管按下「核准並上架」後，系統會自動完成三件事：</p>
+      <ol>
+        <li>複製出「部門版-助理名稱」</li>
+        <li>把部門版的「內部對話」平台以讀取權限分配給品保部角色</li>
+        <li>通知組員與部門同仁</li>
+      </ol>
+      <p>原因 &gt; 這三步本來就是手冊裡擁有者在核准後要手動做的事。如果保留人工作業，主管核准後還要等擁有者有空才能上架，流程等於又停一次，所以我讓系統在核准當下直接做完。</p>
+      <p>至於為什麼要複製一份部門版，而不是直接把林雅婷的原版開放給部門 &gt; 考量到原版之後還會一直被修改，如果直接開放，林雅婷每改一次，同事用到的就是還沒審過的內容。複製出來的部門版是鎖定的，同事用到的永遠是核准過的版本，原版則留在林雅婷手上繼續改。</p>
+
+      <h4>四、主管請假時，由職務代理人審核</h4>
+      <p>題目要求主管請假時流程不能停，但同時又只能有一層核准，而且核准後才能給別人用，這三條要一起守住其實不太容易。我先比較了幾種常見的做法：</p>
+      <ul>
+        <li>逾時自動轉給上一層 &gt; 等於多了一層核准者。</li>
+        <li>部門多人共同審核，誰先審算誰的 &gt; 審核者就不是直屬主管，出了問題也不知道該找誰。</li>
+        <li>請假期間先上架、事後補審 &gt; 違反「核准後才能用」。</li>
+      </ul>
+      <p>最後我的做法是，主管在「審核 › 請假與職務代理」設定請假日期時，一定要指定職務代理人，沒填就不能存檔。</p>
+      <p>原因 &gt; 代理人是陳志明自己事先指定的，等於是主管授權，所以理論上還是只有一層核准；設成必填，則是在設定的那一刻就避免「主管不在、也沒人能審」的情況發生。審核紀錄會寫成「王建宏（代理 陳志明）」，事後也查得到是誰代理的。另外名稱我用「職務代理」，避免和平台既有的「代理排程」搞混。</p>
+      <p>另外有兩個例外狀況：</p>
+      <ul>
+        <li>代理人自己送出的助理 &gt; 不會交給自己審，仍由陳志明審核。</li>
+        <li>主管突發請假、來不及設定 &gt; 由擁有者代為設定職務代理人。</li>
+      </ul>
+
+      <h4>五、審核者在每次顯示時決定，不轉派</h4>
+      <p>請假期間，我沒有把待審的助理「轉」給代理人，而是讓系統在每次顯示時，依請假狀態決定由誰審：陳志明請假中就是王建宏，其他時候就是陳志明。陳志明回來後，還沒處理的助理會自然回到他的清單。</p>
+      <p>原因 &gt; 如果用轉派的方式，就要另外處理「轉出去」和「轉回來」兩段邏輯，萬一主管回來後沒有收回，就會有轉出去卻收不回來的情況。另外林雅婷的狀態列也會同步寫出改由代理人審核，她不用另外去問。</p>
+
+      <h4>六、主管看到熟悉的設定頁，只多一條審核列</h4>
+      <p>審核畫面我直接沿用平台既有的助理設定頁，改成唯讀，並在上方加一條審核列，顯示送審人、第幾次送審、和上次相比改了什麼，以及「核准並上架」和「退回」兩個按鈕。</p>
+      <p>原因 &gt; 陳志明不用為了審核另外學一個新畫面；如果是退回後重送的助理，他只要看改了哪裡就好，不必從頭再看一遍。</p>
+
+      <h4>七、撤回與退回：讓來回修改的成本最低</h4>
+      <ul>
+        <li>撤回 &gt; 審核中的助理，林雅婷可以自己撤回，回到草稿補資料後再送。</li>
+        <li>退回 &gt; 陳志明退回時一定要填原因，並提供幾個常用原因可以直接點選；退回原因會顯示在林雅婷狀態列的最上方。</li>
+      </ul>
+      <p>原因 &gt; 送出後才發現漏了資料是很常見的事，自己撤回會比等主管退回快，主管也少看一次不完整的內容。退回原因設成必填，是因為只寫「退回」的話，林雅婷不知道要改哪裡，很容易來回好幾次；提供常用原因，則是讓主管填起來不會太費力。</p>
+
+      <h4>八、部門同事只看到部門版，上架時才通知</h4>
+      <p>張家豪的選單只有 MaiGPT 和 Agent 市集。林雅婷的助理不管是草稿、審核中還是已退回，都不會出現在他的畫面上；直到部門版上架後，才會出現在 Agent 市集的「組織自建」並標 NEW，通知中心也會同時多一則上架通知。</p>
+      <p>原因 &gt; 審核過程中的通知只發給建立者和審核者。考量到助理可能被退回、重送好幾次，如果同事也收到，每來回一次，張家豪的鈴鐺就會多一則和自己無關的通知。另外我只用平台內的通知、不寄信，避免打擾還不需要這個助理的人。</p>
+    </article>
+  </section>
+
+  <!-- 舊版取捨說明：保留不顯示 -->
+  <section class="panel" id="tab-tradeoffs-old" hidden aria-hidden="true">
+    <div>
+      <h2 class="section-h">取捨說明</h2>
+      <p class="lede" style="margin-top:8px">每一條都回到題目的限制：一層核准、核准後才能用、主管請假時流程不能停，並沿用平台現有的角色與權限機制。</p>
+    </div>
+    <div class="outline">
+      <div class="outline-item"><span class="k">T1</span><h3>主管請假時，由職務代理人審核</h3><p>題目有兩條限制：只需要一層核准（直屬主管），而且核准後才能給別人用。逾時轉給上一層，等於多一層核准者；部門多人共同審核，審核者就不是直屬主管；請假期間先上架、事後補審，違反核准後才能用。代理人由主管本人事先指定，等同主管授權，仍然只有一層核准，流程也不會停。</p></div>
+      <div class="outline-item"><span class="k">T2</span><h3>設定請假時，代理人必填</h3><p>流程會停，是因為主管不在，又沒有人能審。設定請假時就要求填代理人，這個狀態就不會發生。名稱用「職務代理」，避免和平台既有的「代理排程」混淆。</p></div>
+      <div class="outline-item"><span class="k">T3</span><h3>送審後可以撤回</h3><p>送出後才發現漏了文件或寫錯，是很常見的事。撤回後回到草稿，補上資料再送，比等主管退回快，主管也少看一次不完整的件。重送時系統列出與上次送審的差異，主管不用從頭再看一遍。</p></div>
+      <div class="outline-item"><span class="k">T4</span><h3>退回原因必填</h3><p>只寫「退回」，組員不知道要改哪裡，很容易來回好幾次。原因必填，並提供常用原因可以直接點選，主管填寫不費事。</p></div>
+      <div class="outline-item"><span class="k">T5</span><h3>主管核准即生效，系統照手冊做法自動上架</h3><p>系統只在主管或代理人按下「核准」時才上架，沒有其他方式能開放。依手冊現況，核准在平台外進行，之後由擁有者手動複製助理、改綁部門角色、改成唯讀；保留這段人工作業，流程會在核准後再停一次。這裡沿用手冊的「複製後鎖定」：系統複製出部門版，只把它的內部對話平台以讀取分配給使用者-品保部。原版留在組員手上繼續改，也不會影響已上架的部門版。</p></div>
+      <div class="outline-item"><span class="k">T6</span><h3>組員不能自己選開放角色</h3><p>平台現況是建立者在權限設定自己挑角色，等於可以繞過主管直接分享。依手冊的建構者規則，組員只隸屬自己的個人角色，權限設定只列得出這個角色；開放給部門這件事只交給審核流程。</p></div>
+      <div class="outline-item"><span class="k">T7</span><h3>部門同事只看得到部門版，上架時收到通知</h3><p>草稿、審核中、已退回的原版都不會出現在同事端。上架時在通知中心發一則審核通知給部門成員，Agent 市集也標 NEW，同事不用自己去翻。</p></div>
+      <div class="outline-item"><span class="k">T8</span><h3>送出時就告知由誰審核</h3><p>組員不用猜件在誰手上。主管請假時，確認視窗直接寫出代理人的名字。</p></div>
+    </div>
+    <div>
+      <h3 class="section-h" style="font-size:16px">背後規則<small>原型裡不另外操作</small></h3>
+      <ul class="rules">
+        <li>審核者依請假狀態決定：請假中是職務代理人，否則是主管。主管回來後，還沒處理的件會回到主管手上。</li>
+        <li>代理人自己送出的件，不交給自己審，留給主管。</li>
+        <li>主管突發請假、來不及設定時，由擁有者 戴大詠 代為設定職務代理人。</li>
+        <li>送審期間，系統暫時開放審核者以唯讀方式檢視該助理（沿用平台既有的唯讀設定頁），審核結束即收回。</li>
+        <li>平台建立助理時會自動產生網頁 Widget 與 API 兩個對外入口。依手冊建議，建構者角色不給「對話平台」權限，拿不到嵌入碼，未核准的助理不會流到組織外。</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<div id="drawer-root"></div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<div id="guide" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- 人、角色與部門 ---------- */
+  var P = {
+    lin:   { name: "林雅婷", title: "品保工程師", role: "個人角色：林雅婷", short: "林", builder: true },
+    chen:  { name: "陳志明", title: "品保部經理", role: "品保部角色", short: "陳", builder: false },
+    wang:  { name: "王建宏", title: "品保部副理", role: "個人角色：王建宏", short: "王", builder: true },
+    zhang: { name: "張家豪", title: "品檢組長",   role: "品保部角色", short: "張", builder: false }
+  };
+  var MANAGER = "chen", DEPT_ROLE = "品保部角色", DEPT_USERS = 6, OWNER = "戴大詠";
+  var USERS = ["chen", "zhang"]; // 隸屬品保部角色的示範成員
+  var ROLES = [
+    { key: "member",   person: "lin",   label: "組員" },
+    { key: "manager",  person: "chen",  label: "主管" },
+    { key: "delegate", person: "wang",  label: "代理人" },
+    { key: "peer",     person: "zhang", label: "同事" }
+  ];
+  var STATUS = { draft: "草稿", pending: "審核中", rejected: "已退回", published: "已上架" };
+  var KB_LIB = ["首件檢驗程序", "不合格品管制", "三次元量測作業指導", "客戶圖面公差對照"];
+  var REASONS = ["知識庫缺少必要的 SOP，請補上後再送。", "角色指令沒有限制回答範圍，請補上找不到依據時的處理方式。", "名稱和實際用途不一致，請修正。"];
+  var KEY = "hs-approval-proto-v3";
+  var BASE = new Date(2026, 9, 12, 9, 0).getTime(); // 2026/10/12（一）09:00
+
+  var ICON = {
+    chat: '<svg class="i" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+    store: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
+    spark: '<svg class="i" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>',
+    bot: '<svg class="i" viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01"/></svg>',
+    book: '<svg class="i" viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg>',
+    review: '<svg class="i" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 12l2 2 4-4"/></svg>',
+    cal: '<svg class="i" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
+    bell: '<svg class="i" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+    copy: '<svg class="i" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="12" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h9"/></svg>',
+    edit: '<svg class="i" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
+    trash: '<svg class="i" viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>',
+    star: '<svg class="i" viewBox="0 0 24 24"><path d="M12 4l2.4 5 5.6.7-4.1 3.8 1.1 5.5L12 16.3 7 19l1.1-5.5L4 9.7 9.6 9z"/></svg>',
+    gear: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>',
+    mega: '<svg class="i" viewBox="0 0 24 24"><path d="M4 10v4h3l6 4V6L7 10z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg>'
+  };
+
+  function seed() {
+    return {
+      clock: 0,
+      role: "member",
+      annos: true,
+      views: { member: { page: "bots", id: null, sec: "basic" }, manager: { page: "review", id: null, sec: "basic" }, delegate: { page: "bots", id: null, sec: "basic" }, peer: { page: "market", id: null, sec: "basic" } },
+      leave: { active: false, from: "2026-10-13", to: "2026-10-16", delegate: "wang" },
+      leaveForm: { from: "2026-10-13", to: "2026-10-16", delegate: "" },
+      bots: [
+        {
+          id: "a1", uid: "7c2e91d4-3a6f-4b8e-9d21-5f0a8c3e1b77", owner: "lin", status: "draft",
+          name: "檢驗 SOP 問答助理", model: "Claude 5 Sonnet", tools: 0,
+          desc: "回答 IQC 進料檢驗、量具使用與 AQL 抽樣問題，答案附 SOP 條文出處。",
+          prompt: "你是宏昇精密品保部的檢驗助理。只根據知識庫內的 SOP 回答；找不到依據時，回答「SOP 未規定，請洽品保主管」，不要自行推測。回答時標註文件編號與章節。",
+          kb: ["IQC 進料檢驗 SOP", "量具校正與管理", "AQL 抽樣計畫"],
+          updatedAt: BASE - 26 * 3600000,
+          history: [{ t: BASE - 26 * 3600000, who: "林雅婷", act: "建立 AI 助理", note: "只綁定 個人角色：林雅婷" }],
+          submitCount: 0, snap: null, changes: [], reason: null, copyId: null,
+          chat: [["外徑 φ12 的軸件來料 500 pcs，要抽幾個？", "依 IQC 進料檢驗 SOP 第 5.2 節，採一般檢驗水準 II。批量 281–500 對應樣本代字 H，抽 50 pcs；AQL 1.0 時允收數 Ac=1、拒收數 Re=2。（出處：AQL 抽樣計畫）"]]
+        },
+        {
+          id: "a0", uid: "2f81b6c0-94de-4a1c-b3e5-0c7d9a26f418", owner: "wang", status: "published",
+          name: "客訴 8D 報告草擬助理", model: "Claude 5 Sonnet", tools: 1,
+          desc: "依客訴單內容草擬 8D 報告的 D1–D4，供品保工程師修改後送出。",
+          prompt: "根據客訴單欄位草擬 8D 報告 D1–D4，語氣客觀，不承諾交期。",
+          kb: ["客訴處理程序", "8D 報告範本"],
+          updatedAt: BASE - 12 * 86400000,
+          history: [{ t: BASE - 12 * 86400000, who: "陳志明", act: "核准並上架", note: "系統建立「部門版-客訴 8D 報告草擬助理」" }],
+          submitCount: 1, snap: null, changes: [], reason: null, copyId: "d0",
+          chat: [["客戶反映 M8 螺帽牙紋不良，幫我起 D2。", "D2 問題描述（草稿）：客戶於進料檢驗發現 M8 螺帽牙紋不良，通規無法旋入。請補上批號、不良數與發現日期。"]]
+        }
+      ],
+      copies: [
+        { id: "d0", src: "a0", name: "部門版-客訴 8D 報告草擬助理", desc: "依客訴單內容草擬 8D 報告的 D1–D4，供品保工程師修改後送出。", model: "Claude 5 Sonnet", tools: 1, approvedBy: "陳志明", owner: "wang", publishedAt: BASE - 12 * 86400000, isNew: false }
+      ],
+      notes: [],
+      ui: {}
+    };
+  }
+  function freshUI() { return { bell: false, bellTab: "review", rejecting: null, rejectText: "", drawer: null }; }
+
+  var S;
+  try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+  if (!S || !S.bots) S = seed();
+  S.ui = freshUI();
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  /* ---------- 工具 ---------- */
+  function h(str) { return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+  function now() { return BASE + S.clock * 60000; }
+  function tick(min) { S.clock += min; }
+  function fmt(ms) { var d = new Date(ms); return (d.getMonth() + 1) + "/" + d.getDate() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  function fmtFull(ms) { var d = new Date(ms); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  function fmtDay(ms) { var d = new Date(ms); return (d.getMonth() + 1) + "/" + d.getDate() + "（" + "日一二三四五六"[d.getDay()] + "）" + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  function md(iso) { var p = iso.split("-"); return +p[1] + "/" + +p[2]; }
+  function isoToMs(iso, hh, mm) { var p = iso.split("-"); return new Date(+p[0], +p[1] - 1, +p[2], hh, mm).getTime(); }
+  function jumpTo(ms) { var m = Math.round((ms - BASE) / 60000); if (m > S.clock) S.clock = m; }
+  function bot(id) { for (var i = 0; i < S.bots.length; i++) if (S.bots[i].id === id) return S.bots[i]; return null; }
+  function copyOf(id) { for (var i = 0; i < S.copies.length; i++) if (S.copies[i].id === id) return S.copies[i]; return null; }
+  function me() { for (var i = 0; i < ROLES.length; i++) if (ROLES[i].key === S.role) return ROLES[i].person; return "lin"; }
+  function roleOf(person) { for (var i = 0; i < ROLES.length; i++) if (ROLES[i].person === person) return ROLES[i]; return ROLES[0]; }
+  function leaveRange() { return md(S.leave.from) + "–" + md(S.leave.to); }
+  function view() { return S.views[S.role]; }
+
+  // 審核者即時計算：主管請假中 → 職務代理人；代理人自己的件不給自己審，留給主管
+  function reviewerOf(a) {
+    if (S.leave.active && S.leave.delegate && S.leave.delegate !== a.owner) return S.leave.delegate;
+    return MANAGER;
+  }
+  function actorLabel(p) { return p === MANAGER ? P[p].name : P[p].name + "（代理 " + P[MANAGER].name + "）"; }
+  function log(a, who, act, note) { a.history.push({ t: now(), who: who, act: act, note: note || "" }); }
+  // key：同一類通知只保留最新一則未讀，避免重複開關請假時數字一直累加
+  function notify(to, title, body, ref, key) {
+    if (key) S.notes = S.notes.filter(function (n) { return !(n.to === to && n.key === key && !n.read); });
+    S.notes.unshift({ id: "n" + Date.now() + Math.random().toString(36).slice(2, 6), key: key || null, to: to, title: title, body: body || "", t: now(), read: false, ref: ref || null });
+  }
+  function unread(p) { return S.notes.filter(function (n) { return n.to === p && !n.read; }).length; }
+  function queueFor(p) { return S.bots.filter(function (a) { return a.status === "pending" && reviewerOf(a) === p; }); }
+  function hasReviewMenu(p) { return p === MANAGER || S.leave.delegate === p; }
+  // 主管也有 AI 助理管理功能（列表只顯示自己建立的）；主管自建助理的核准不在本次範圍
+  function hasBotMenu(p) { return P[p].builder || p === MANAGER; }
+  function marketFor(p) {
+    // 品保部角色：看到部門版；有個人角色的組員：只看到綁在自己個人角色上的原版
+    if (P[p].builder) return S.bots.filter(function (a) { return a.owner === p; }).map(function (a) { return { kind: "own", a: a }; });
+    return S.copies.slice().sort(function (x, y) { return y.publishedAt - x.publishedAt; }).map(function (c) { return { kind: "copy", c: c }; });
+  }
+  function lastSubmit(a) { var s = a.history.filter(function (e) { return e.act === "送出審核" || e.act === "重新送出"; }).pop(); return s ? s.t : a.updatedAt; }
+
+  /* ---------- 動作 ---------- */
+  function snapshot(a) { return { name: a.name, prompt: a.prompt, kb: a.kb.slice() }; }
+  function diff(a) {
+    var s = a.snap, out = [];
+    if (!s) return out;
+    if (a.name !== s.name) out.push("修改名稱");
+    if (a.prompt !== s.prompt) out.push("修改角色指令");
+    a.kb.forEach(function (k) { if (s.kb.indexOf(k) < 0) out.push("新增知識庫：" + k); });
+    s.kb.forEach(function (k) { if (a.kb.indexOf(k) < 0) out.push("移除知識庫：" + k); });
+    return out;
+  }
+  function doSubmit(id) {
+    var a = bot(id), rv = reviewerOf(a);
+    tick(4);
+    var changes = diff(a);
+    a.submitCount = (a.submitCount || 0) + 1;
+    a.changes = changes; a.snap = snapshot(a);
+    a.status = "pending"; a.reason = null; a.updatedAt = now();
+    log(a, P[a.owner].name, a.submitCount > 1 ? "重新送出" : "送出審核", "審核者：" + actorLabel(rv) + (a.submitCount > 1 ? "；變更：" + (changes.length ? changes.join("、") : "無") : ""));
+    notify(rv, "【待審核】" + a.name, P[a.owner].name + " 送出審核" + (rv !== MANAGER ? "（你代理 " + P[MANAGER].name + "）" : "") + (a.submitCount > 1 ? "，第 " + a.submitCount + " 次送審" : ""), id);
+  }
+  function doWithdraw(id) {
+    var a = bot(id), rv = reviewerOf(a);
+    tick(6);
+    a.status = "draft"; a.updatedAt = now(); S.scene = null;
+    log(a, P[a.owner].name, "撤回", "回到草稿");
+    notify(rv, "【已撤回】" + a.name, P[a.owner].name + " 撤回了送審，已從你的待審清單移除", id);
+  }
+  function doApprove(id, by) {
+    var a = bot(id);
+    tick(35);
+    var c = { id: "d" + (S.copies.length + 1), src: a.id, name: "部門版-" + a.name, desc: a.desc, model: a.model, tools: a.tools, approvedBy: actorLabel(by), owner: a.owner, publishedAt: now(), isNew: true };
+    S.copies.push(c);
+    a.status = "published"; a.copyId = c.id; a.updatedAt = now();
+    log(a, actorLabel(by), "核准並上架", "系統建立「" + c.name + "」，內部對話平台分配給 " + DEPT_ROLE + "・讀取");
+    notify(a.owner, "【已核准】" + a.name, actorLabel(by) + " 核准，「" + c.name + "」已開放給 " + DEPT_ROLE, id);
+    USERS.forEach(function (u) { if (u !== by) notify(u, "【新上架】" + c.name, "建立者 " + P[a.owner].name + "，可以到 Agent 市集「組織自建」開始對話", c.id); });
+  }
+  function doReject(id, by, text) {
+    var a = bot(id);
+    tick(28);
+    a.status = "rejected"; a.updatedAt = now(); a.reason = { text: text, by: actorLabel(by), t: now() };
+    log(a, actorLabel(by), "退回", text);
+    notify(a.owner, "【已退回】" + a.name, actorLabel(by) + "：" + text, id);
+  }
+  function startLeave(from, to, delegate) {
+    S.leave = { active: true, from: from, to: to, delegate: delegate };
+    jumpTo(isoToMs(from, 8, 30));
+    S.bots.filter(function (a) { return a.status === "pending"; }).forEach(function (a) {
+      var rv = reviewerOf(a);
+      if (rv !== MANAGER) {
+        log(a, "系統", "審核者改為職務代理人", actorLabel(rv));
+        notify(a.owner, "【審核者變更】" + a.name, "審核者改為職務代理人 " + P[rv].name + "（" + P[MANAGER].name + " 請假 " + leaveRange() + "）", a.id, "reviewer-" + a.id);
+      }
+    });
+    notify(delegate, "【職務代理】" + P[MANAGER].name + " 經理請假 " + leaveRange(), "你是職務代理人，請假期間交給" + P[MANAGER].name + "的待審件會出現在你的「待我審核」", null, "leave");
+  }
+  function endLeave() {
+    var d = S.leave.delegate, moved = queueFor(d);
+    S.leave.active = false;
+    jumpTo(isoToMs(S.leave.to, 8, 30) + 86400000);
+    moved.forEach(function (a) {
+      log(a, "系統", "審核者改回主管", P[MANAGER].name);
+      notify(a.owner, "【審核者變更】" + a.name, "審核者改回 " + P[MANAGER].name, a.id, "reviewer-" + a.id);
+    });
+    notify(MANAGER, "【請假結束】待審件已回到你的清單", moved.length + " 件待審", null, "leave");
+    notify(d, "【職務代理結束】", "待審件已交回 " + P[MANAGER].name, null, "leave");
+  }
+
+  /* ---------- 情境 ---------- */
+  function setRole(key, page, id, sec) { S.role = key; if (page) S.scene = null; if (page) S.views[key] = { page: page, id: id || null, sec: sec || "basic" }; S.ui = freshUI(); }
+  var SCENES = {
+    submit: function () { S = seed(); setRole("member", "bot", "a1"); },
+    withdraw: function () { S = seed(); doSubmit("a1"); setRole("member", "bot", "a1", "kb"); S.scene = "withdraw"; },
+    reject: function () { S = seed(); doSubmit("a1"); setRole("manager", "rbot", "a1"); S.ui.rejecting = "a1"; },
+    resubmit: function () {
+      S = seed(); doSubmit("a1");
+      doReject("a1", MANAGER, "知識庫缺少首件檢驗程序，產線最常問首件，請補上後再送。");
+      setRole("member", "bot", "a1", "kb");
+    },
+    leave: function () { S = seed(); startLeave("2026-10-13", "2026-10-16", "wang"); tick(50); doSubmit("a1"); setRole("delegate", "review"); }
+  };
+
+  /* ---------- 擁有者視角（組織層） ---------- */
+  function ovCell(r) {
+    var p = r.person, a1 = bot("a1"), lines = [];
+    if (p === "lin") {
+      var st = a1.status, t = st === "pending" ? "等待 " + actorLabel(reviewerOf(a1)) : st === "rejected" ? "被 " + a1.reason.by + " 退回" : st === "published" ? "部門版已上架" : (a1.submitCount ? "已撤回，補資料中" : "尚未送出");
+      lines.push('<span class="line">' + tag(st) + "<span>" + h(t) + "</span></span>");
+    } else if (p === MANAGER) {
+      lines.push('<span class="line">' + (S.leave.active ? '<span class="tag tag-pending">請假中</span><span>' + leaveRange() + "</span>" : '<span class="tag tag-plain">在職</span>') + "</span>");
+      lines.push('<span class="line">待審 ' + queueFor(p).length + " 件</span>");
+    } else {
+      if (S.leave.delegate === p) lines.push('<span class="line">' + (S.leave.active ? '<span class="tag tag-pending">代理中</span><span>待審 ' + queueFor(p).length + " 件</span>" : '<span class="tag tag-plain">主管請假時可被指定為代理人</span>') + "</span>");
+      var m = marketFor(p), news = m.filter(function (x) { return x.kind === "copy" && x.c.isNew; }).length;
+      if (!P[p].builder) lines.push('<span class="line">Agent 市集可見 ' + m.length + " 個" + (news ? '<span class="tag tag-new">NEW ' + news + "</span>" : "") + "</span>");
+      else lines.push('<span class="line">自己的助理 ' + m.length + " 個</span>");
+    }
+    var n = unread(p), cur = S.role === r.key;
+    return '<button class="ov" data-act="role" data-role="' + r.key + '" aria-pressed="' + cur + '">' +
+      '<span class="who"><span class="av">' + P[p].short + '</span><span class="nm2"><b>' + P[p].name + "</b><small>" + r.label + "・" + P[p].title + "</small></span>" + (n ? '<span class="dot" title="未讀通知">' + n + "</span>" : "") + "</span>" +
+      '<span class="role">' + P[p].role + "</span>" + lines.join("") + (cur ? '<span class="cur">● 目前視角</span>' : "") + "</button>";
+  }
+
+  function renderConsole() {
+    var hintG = guideStep();
+    document.getElementById("console").innerHTML =
+      '<div class="c-head"><h2>擁有者視角</h2><span class="who-me"><i>戴</i>' + OWNER + "・數位轉型負責人</span>" +
+        '<span class="sub">組織層：看得到所有成員此刻的狀態，點任一位成員，切換到對方的畫面</span><span class="clock mono">模擬時間 ' + fmtDay(now()) + "</span></div>" +
+      '<div class="c-body">' +
+        '<div class="c-label">成員狀態</div>' +
+        '<div class="overview">' + ROLES.map(ovCell).join("") + "</div>" +
+        '<div class="c-label">模擬情境</div>' +
+        '<div class="console-row">' +
+          '<label class="switch"><input type="checkbox" id="leave-toggle" ' + (S.leave.active ? "checked" : "") + "> 主管請假" + (S.leave.active ? "中（代理人 " + P[S.leave.delegate].name + "）" : "") + "</label>" +
+          '<span class="vsep"></span>' +
+          '<button class="btn" data-act="scene" data-scene="submit">送審</button>' +
+          '<button class="btn" data-act="scene" data-scene="withdraw">撤回補資料</button>' +
+          '<button class="btn" data-act="scene" data-scene="reject">主管退回</button>' +
+          '<button class="btn" data-act="scene" data-scene="resubmit">退回後重送</button>' +
+          '<button class="btn" data-act="scene" data-scene="leave">請假中代理核准</button>' +
+          '<span class="vsep"></span>' +
+          '<label class="switch"><input type="checkbox" id="anno-toggle" ' + (S.annos ? "checked" : "") + "> 步驟引導</label>" +
+          '<button class="btn" data-act="reset">重置示範</button>' +
+        "</div>" +
+        '<div class="hint"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><b>下一步</b><span class="ht">' + h(hintG.detail) + "</span>" + (hintG.sel ? '<button class="btn g-go" data-act="guide-go">跳到這一步</button>' : "") + "</div>" +
+      "</div>";
+  }
+
+  /* ---------- 平台畫面（成員層） ---------- */
+  function anno() { return ""; } // 設計註記改由步驟引導取代
+  function tag(st) { return '<span class="tag tag-' + st + '">' + STATUS[st] + "</span>"; }
+
+  function sideNav(p) {
+    var v = view(), out = [];
+    function nv(page, label, icon, opts) {
+      opts = opts || {};
+      var cur = !opts.dis && (v.page === page || (page === "bots" && v.page === "bot") || (page === "review" && v.page === "rbot"));
+      return '<button class="nv' + (opts.sub ? " sub" : "") + (opts.isNew ? " nm" : "") + '" ' + (opts.dis ? "disabled" : 'data-act="nav" data-page="' + page + '"') + (cur ? ' aria-current="page"' : "") + ">" + icon + "<span>" + label + "</span>" + (opts.count ? '<span class="dot">' + opts.count + "</span>" : "") + "</button>";
+    }
+    out.push(nv("maigpt", "MaiGPT", ICON.chat, { dis: true }));
+    out.push(nv("market", "Agent 市集", ICON.store));
+    if (hasBotMenu(p)) {
+      out.push('<div class="grp">' + ICON.spark + "<span>AI 功能</span></div>");
+      out.push(nv("bots", "AI 助理", ICON.bot, { sub: true }));
+      out.push(nv("kb", "知識庫", ICON.book, { sub: true, dis: true }));
+    }
+    if (hasReviewMenu(p)) {
+      out.push('<div class="grp nm">' + ICON.review + "<span>審核</span></div>");
+      out.push(nv("review", "待我審核", ICON.review, { sub: true, count: queueFor(p).length }));
+      if (p === MANAGER) out.push(nv("leave", "請假與職務代理", ICON.cal, { sub: true }));
+    }
+    return '<div class="mp-logo"><i>AI</i><span>AI 平台</span></div><div class="mp-org"><span>宏昇精密工業</span><small>▾</small></div>' + out.join("");
+  }
+
+  function bellPanel(p) {
+    if (!S.ui.bell) return "";
+    var mine = S.notes.filter(function (n) { return n.to === p; });
+    var sys = [{ title: "【系統維護】10/18 02:00–04:00 平台升級", body: "維護期間無法登入，請提前儲存設定。", ago: "3 天前" }];
+    var org = [{ title: "宏昇 AI 平台使用守則 v1", body: "自建助理需經直屬主管核准，才會開放給部門使用。", ago: "1 週前" }];
+    var tab = S.ui.bellTab, list = "";
+    if (tab === "review") {
+      list = mine.map(function (n) { return '<li class="' + (n.read ? "" : "unread") + '"><button data-act="note" data-id="' + n.id + '"><span class="ic">' + ICON.review + '</span><span><span class="t">' + h(n.title) + '</span><span class="d">' + h(n.body) + '</span><time class="mono">' + fmt(n.t) + "</time></span></button></li>"; }).join("");
+      list = list ? '<ul class="nlist">' + list + "</ul>" : '<div class="nempty">目前沒有審核通知</div>';
+    } else {
+      var arr = tab === "sys" ? sys : org;
+      list = '<ul class="nlist">' + arr.map(function (n) { return '<li><div><span class="ic">' + ICON.mega + '</span><span><span class="t">' + h(n.title) + '</span><span class="d">' + h(n.body) + "</span><time>" + n.ago + "</time></span></div></li>"; }).join("") + "</ul>";
+    }
+    var un = unread(p);
+    return '<div class="notif" role="dialog" aria-label="通知中心"><h4>通知中心</h4><div class="ntabs">' +
+      '<button data-act="btab" data-tab="sys" aria-selected="' + (tab === "sys") + '">系統公告 (1)</button>' +
+      '<button data-act="btab" data-tab="org" aria-selected="' + (tab === "org") + '">組織公告 (1)</button>' +
+      '<button class="nm inl" data-act="btab" data-tab="review" aria-selected="' + (tab === "review") + '">審核通知' + (un ? " (" + un + ")" : "") + "</button></div>" +
+      list + (tab === "review" && mine.length ? '<div class="nfoot"><button data-act="readall">全部標記已讀</button></div>' : "") + "</div>";
+  }
+
+  function renderMP() {
+    var p = me(), v = view();
+    if ((v.page === "review" || v.page === "rbot") && !hasReviewMenu(p)) v = S.views[S.role] = { page: P[p].builder ? "bots" : "market", id: null, sec: "basic" };
+    if ((v.page === "bots" || v.page === "bot") && !hasBotMenu(p)) v = S.views[S.role] = { page: "market", id: null, sec: "basic" };
+    if (v.page === "leave" && p !== MANAGER) v = S.views[S.role] = { page: "market", id: null, sec: "basic" };
+    var crumb = [], body = "";
+    if (v.page === "bots") { crumb = ["AI 功能", "AI 助理"]; body = viewBots(p); }
+    else if (v.page === "bot") { var a = bot(v.id); crumb = ["AI 功能", '<button data-act="nav" data-page="bots">AI 助理</button>', h(a.name)]; body = viewBot(a, p); }
+    else if (v.page === "market") { crumb = ["Agent 市集"]; body = viewMarket(p); }
+    else if (v.page === "review") { crumb = ["審核", "待我審核"]; body = viewReview(p); }
+    else if (v.page === "rbot") { var b = bot(v.id); crumb = ["審核", '<button data-act="nav" data-page="review">待我審核</button>', h(b.name)]; body = viewReviewBot(b, p); }
+    else if (v.page === "leave") { crumb = ["審核", "請假與職務代理"]; body = viewLeave(); }
+    var n = unread(p);
+    document.getElementById("mp").innerHTML =
+      '<div class="mp-banner">概念原型・宏昇精密工業（虛構）・依 MaiAgent 現有平台架構繪製，非官方畫面</div>' +
+      '<div class="mp-body"><aside class="mp-side">' + sideNav(p) + "</aside>" +
+      '<div class="mp-main"><div class="mp-top"><div class="crumb">' + crumb.join(" <span>/</span> ") + "</div>" +
+        '<div class="mp-tools"><span class="ask">✦ Ask AI</span><span class="ext">Cookbook</span><span class="ext">文件</span><span class="ext">支援中心</span>' +
+        '<span class="bell-wrap"><button class="bell" data-act="bell" aria-label="通知中心，' + n + ' 則未讀" aria-expanded="' + S.ui.bell + '">' + ICON.bell + (n ? '<span class="dot">' + n + "</span>" : "") + "</button>" + bellPanel(p) + "</span>" +
+        '<span class="me" title="' + P[p].role + '"><i>' + P[p].short + "</i><span><b>" + P[p].name + "</b><small>" + P[p].role + "</small></span></span></div>" +
+        "</div>" +
+      '<div class="mp-content">' + body + "</div></div></div>";
+    // 窄寬度時側欄是橫向一排：把目前所在的項目捲進可見範圍
+    var side = document.querySelector(".mp-side"), curNav = side && side.querySelector('[aria-current="page"]');
+    if (curNav && side.scrollWidth > side.clientWidth) {
+      var sr = side.getBoundingClientRect(), cr = curNav.getBoundingClientRect();
+      if (cr.left < sr.left || cr.right > sr.right) side.scrollLeft += cr.left - sr.left - 8;
+    }
+    queueGuide();
+  }
+
+  /* AI 助理列表（組員） */
+  function viewBots(p) {
+    var mine = S.bots.filter(function (a) { return a.owner === p; });
+    var rows = mine.map(function (a) {
+      var st = a.status === "pending" ? "等待 " + actorLabel(reviewerOf(a)) : a.status === "rejected" ? "被 " + a.reason.by + " 退回" : a.status === "published" ? "部門版已上架" : "僅自己可見";
+      return '<tr><td class="mono" style="font-size:12.5px">' + a.uid.slice(0, 16) + "…</td>" +
+        '<td><button class="link" data-act="open" data-id="' + a.id + '">' + h(a.name) + "</button></td>" +
+        "<td>" + a.model + "</td><td>Agent 模式</td>" +
+        '<td><span class="kchip">' + h(a.kb[0] || "—") + (a.kb.length > 1 ? " +" + (a.kb.length - 1) : "") + " ›</span></td>" +
+        '<td><div style="display:grid;gap:4px;justify-items:start">' + tag(a.status) + '<small style="color:var(--muted)">' + h(st) + "</small></div></td>" +
+        "<td>" + P[a.owner].name + '</td><td class="mono" style="font-size:12.5px">' + fmtFull(a.updatedAt) + "</td>" +
+        '<td><span class="ops"><button disabled title="複製" aria-label="複製">' + ICON.copy + '</button><button data-act="open" data-id="' + a.id + '" title="編輯" aria-label="編輯">' + ICON.edit + '</button><button class="del" disabled title="刪除" aria-label="刪除">' + ICON.trash + "</button></span></td></tr>";
+    }).join("");
+    return '<div class="card-box"><div class="toolbar"><span class="fake">⌕ 請輸入 AI 助理名稱或 ID</span><span class="fake">全部大語言模型</span><span class="fake">全部回答模式</span><span class="grow"></span><button class="btn primary" data-act="nocreate">＋ 建立 AI 助理</button></div>' +
+      '<div class="mt-wrap"><table class="mt"><thead><tr><th>ID</th><th>名稱</th><th>大語言模型</th><th>回答模式</th><th>關聯知識庫</th><th class="nm">審核狀態</th><th>建立者</th><th>最後更新時間</th><th>操作</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
+      (mine.length ? "" : '<div class="empty-state">目前沒有 AI 助理</div>') +
+      '<div class="pager">共 ' + mine.length + " 條資料 <b>1</b> 10 條/頁</div>" +
+      (P[p].builder ? anno("G1", "依手冊的個人角色做法，" + P[p].name + " 只隸屬自己的個人角色，列表只會出現自己建立的助理；部門版不在這裡。") +
+        anno("G3", "「審核狀態」欄直接寫出等待誰，不用點進去也知道件在誰手上。") : "") + "</div>";
+  }
+
+  /* 助理設定頁：建立者可編輯，審核者唯讀 */
+  function cfgNav(a, sec) {
+    function item(k, label, right, unset, dis) {
+      return "<button " + (dis ? "disabled" : 'data-act="sec" data-sec="' + k + '"') + (sec === k ? ' aria-current="true"' : "") + "><span>" + label + '</span><span class="r' + (unset ? " unset" : "") + '">' + (right || "") + "</span></button>";
+    }
+    return '<nav class="cfg-nav" aria-label="設定目錄"><div class="fake-search">⌕ 搜尋設定</div>' +
+      '<div class="g">基本</div>' + item("basic", "基本設定") + item("mode", "回答模式設定", "Agent 模式") +
+      '<div class="g">知識與資料</div>' + item("kb", "知識庫設定", a.kb.length + " 個知識庫") + item("tag", "標籤過濾", "", false, true) + item("db", "資料庫設定", "未設定", true, true) +
+      '<div class="g">能力擴充</div>' + item("tool", "工具", a.tools ? a.tools + " 個工具" : "未設定", !a.tools, true) + item("mcp", "MaiGPT 連接器", "未設定", true, true) + item("skill", "技能設定", "未設定", true, true) + item("hook", "Hook", "", false, true) +
+      '<div class="g">介面與體驗</div>' + item("ui", "Agent UI", "未設定", true, true) +
+      '<div class="g">管理與進階</div>' + item("perm", "權限設定") + item("adv", "進階設定", "", false, true) + "</nav>";
+  }
+  function cfgBody(a, sec, editable, reviewer) {
+    var ro = editable ? "" : " readonly";
+    if (sec === "basic") {
+      return '<div class="field"><label for="f-name"><span class="req">*</span>名稱</label><input id="f-name" data-field="name" value="' + h(a.name) + '"' + ro + "></div>" +
+        '<div class="field"><span class="fl"><span class="req">*</span>LLM 模型</span><div class="fakeselect">✳ ' + a.model + ' <small>(AWS Bedrock)</small><span class="mini p">多模態</span><span class="mini o">思考</span></div></div>' +
+        '<div class="infobox"><b>模型選擇建議</b><span>模型選擇影響回覆速度與品質，預設模型適合大多數使用場景。</span></div>';
+    }
+    if (sec === "mode") {
+      return '<div class="field"><span class="fl">回答模式</span><div class="modes"><div class="mode"><i></i><b>RAG 問答</b><span>反應快速，適合簡易客服與資訊查詢，無法調用外部工具</span></div><div class="mode on"><i></i><b>Agent 模式</b><span>具備自主規劃能力，可調用外部工具與資料庫，適合用來完成複雜任務</span></div></div></div>' +
+        '<div class="field"><label for="f-prompt">角色指令</label><textarea id="f-prompt" data-field="prompt" rows="5"' + ro + ">" + h(a.prompt) + "</textarea></div>";
+    }
+    if (sec === "kb") {
+      return '<div class="field"><span class="fl">關聯知識庫</span><div class="kblist">' + a.kb.map(function (k, i) {
+        return '<div class="kbrow"><span>' + ICON.book + h(k) + "</span>" + (editable ? '<button class="x" data-act="kb-rm" data-id="' + a.id + '" data-k="' + i + '" aria-label="移除 ' + h(k) + '">✕</button>' : "") + "</div>";
+      }).join("") + "</div></div>" +
+        (editable ? '<div><button class="btn" data-act="kb-add" data-id="' + a.id + '">＋ 選擇知識庫</button></div>' : "");
+    }
+    if (sec === "perm") {
+      if (reviewer) {
+        return '<div class="infobox nm"><b>核准後的開放範圍</b><span>系統會複製出「部門版-' + h(a.name) + "」，並把它的內部對話平台分配給 " + DEPT_ROLE + "（" + DEPT_USERS + " 人），只勾讀取。原版維持只綁 " + P[a.owner].role + "。</span></div>";
+      }
+      return '<div class="infobox nm"><b>開放範圍由審核流程管理</b><span>' + (a.status === "published"
+        ? "「部門版-" + h(a.name) + "」已開放給 " + DEPT_ROLE + "（讀取）。這裡的原版只綁你的個人角色，修改不會影響部門版。"
+        : "核准後，系統會複製出「部門版-" + h(a.name) + "」並開放給 " + DEPT_ROLE + "（讀取）。核准前只有你看得到。") + "</span></div>" +
+        '<div class="field"><span class="fl">自訂選擇角色</span><div class="transfer">' +
+        '<div class="tcol"><header>可選角色 <small>共 1 項</small></header><div>' + P[a.owner].role + "</div></div>" +
+        '<div class="tmid"><span>新增角色 ›</span><span>‹ 移除角色</span></div>' +
+        '<div class="tcol"><header>已選角色 <small>共 1 項</small></header><div>' + P[a.owner].role + "</div></div></div></div>" +
+        anno("T6", "依手冊的個人角色做法，組員只隸屬自己的個人角色，這裡列不出部門角色；開放給部門只能經過審核。");
+    }
+    return "";
+  }
+  function cfgPage(a, sec, editable, reviewer, foot) {
+    return '<div class="ptabs"><span class="on">設定</span><span>使用分析</span><span>對話平台<span class="c">3</span></span><span>API 串接</span><span>Webhook</span></div>' +
+      '<div class="cfg">' + cfgNav(a, sec) + '<div class="cfg-body">' + cfgBody(a, sec, editable, reviewer) + (foot ? '<div class="cfg-foot">' + foot + "</div>" : "") + "</div></div>";
+  }
+
+  function viewBot(a, p) {
+    var sec = view().sec || "basic";
+    var editable = a.owner === p && a.status !== "pending";
+    var rv = reviewerOf(a), bar = "";
+    var hist = '<button class="lnk" data-act="drawer" data-id="' + a.id + '">審核紀錄</button>';
+    var leaveNote = S.leave.active && rv !== MANAGER ? "<span>" + P[MANAGER].name + " 經理請假中（" + leaveRange() + "），由職務代理人 " + P[rv].name + " 審核。</span>" : "";
+    if (a.status === "draft") bar = '<div class="sbar draft nm"><div class="msg"><span><b>草稿</b>・只有你看得到。送出後由 ' + h(actorLabel(rv)) + " 審核。</span>" + leaveNote + "</div>" + hist + "</div>";
+    else if (a.status === "pending") bar = '<div class="sbar pending nm"><div class="msg"><span><b>審核中</b>・等待 ' + h(actorLabel(rv)) + " 審核，設定已鎖定。需要修改請先撤回。</span>" + leaveNote + "</div>" + hist + "</div>" + (leaveNote ? anno("G2", "審核者依請假狀態即時計算，組員看得到改派，不需要另外詢問。") : "");
+    else if (a.status === "rejected") bar = '<div class="sbar rejected nm"><div class="msg"><span><b>已退回</b>・' + h(a.reason.by) + " 於 " + fmt(a.reason.t) + " 退回</span><blockquote>" + h(a.reason.text) + "</blockquote><span>補上資料後可以重新送出。</span></div>" + hist + "</div>";
+    else { var c = copyOf(a.copyId); bar = '<div class="sbar published nm"><div class="msg"><span><b>已上架</b>・' + h(c ? c.approvedBy : "") + " 核准，「" + h(c ? c.name : "") + "」已開放給 " + DEPT_ROLE + "。</span><span>這裡是原版，仍可編輯；修改不會影響部門版（改版重新核准不在本次範圍）。</span></div>" + hist + "</div>"; }
+
+    var foot = "";
+    if (a.owner === p) {
+      foot = '<button class="btn" data-act="save"' + (editable ? "" : " disabled") + ">儲存</button>";
+      if (a.status === "draft" || a.status === "rejected") foot += '<button class="btn primary nm" data-act="ask-submit" data-id="' + a.id + '">' + (a.submitCount ? "重新送出" : "送出審核") + "</button>";
+      if (a.status === "pending") foot += '<button class="btn nm" data-act="ask-withdraw" data-id="' + a.id + '">撤回</button>';
+    }
+    return bar + '<div class="card-box">' + cfgPage(a, sec, editable, false, foot) + "</div>";
+  }
+
+  /* Agent 市集 */
+  function viewMarket(p) {
+    var list = marketFor(p);
+    var cards = list.map(function (x) {
+      if (x.kind === "copy") {
+        var c = x.c;
+        return '<article class="agent"><span class="star">' + ICON.star + '</span><span class="ico">' + ICON.bot + "</span><h3>" + h(c.name) + (c.isNew ? ' <span class="tag tag-new nm inl">NEW</span>' : "") + "</h3><p>" + h(c.desc) + "</p>" +
+          '<div class="meta"><span>✳ ' + c.model + "</span><span>" + c.tools + " 個工具</span><span>核准：" + h(c.approvedBy) + "</span></div>" +
+          '<div class="foot"><span style="color:var(--muted)">' + ICON.gear + '</span><button class="btn" data-act="chat" data-id="' + c.src + '">' + ICON.chat + " 開始對話</button></div></article>";
+      }
+      var a = x.a;
+      return '<article class="agent"><span class="star">' + ICON.star + '</span><span class="ico">' + ICON.bot + "</span><h3>" + h(a.name) + ' <span class="tag tag-plain">僅自己可見</span></h3><p>' + h(a.desc) + "</p>" +
+        '<div class="meta"><span>✳ ' + a.model + "</span><span>" + a.tools + " 個工具</span></div>" +
+        '<div class="foot"><span style="color:var(--muted)">' + ICON.gear + '</span><button class="btn" data-act="chat" data-id="' + a.id + '">' + ICON.chat + " 開始對話</button></div></article>";
+    }).join("");
+    return '<div class="card-box"><div class="mtabs"><button data-act="official">官方內建</button><button class="on">組織自建</button></div>' +
+      '<div class="mhead"><h2>選擇一個 Agent 來協助你完成任務</h2>' + (P[p].builder ? '<button class="btn" data-act="nav" data-page="bots">' + ICON.gear + " Agent 管理</button>" : "") + "</div>" +
+      '<div class="msec"><b>組織助理</b><span>· ' + list.length + "</span><span>由組織成員建立，可調整指令、知識庫與工具。</span></div>" +
+      (list.length ? '<div class="agents">' + cards + "</div>" : '<div class="empty-state">目前沒有可用的組織助理</div>') +
+      (P[p].builder
+        ? anno("G1", "組員 " + P[p].name + " 不隸屬 " + DEPT_ROLE + "，這裡只列出綁在自己個人角色上的原版，用來測試；部門版只有品保部角色看得到。")
+        : anno("G1", "同事只看得到核准後的部門版，草稿、審核中、已退回的原版都不會出現。上架時會收到通知，卡片也標 NEW。")) + "</div>";
+  }
+
+  /* 審核 › 待我審核 */
+  function viewReview(p) {
+    var onLeave = p === MANAGER && S.leave.active;
+    var list = onLeave ? S.bots.filter(function (a) { return a.status === "pending"; }) : queueFor(p);
+    var banner = "";
+    if (onLeave) banner = '<div class="sbar info"><div class="msg"><span><b>你目前請假中</b>（' + leaveRange() + "）。待審件由職務代理人 " + P[S.leave.delegate].name + " 處理，你回來後還沒處理的件會回到這裡。</span></div></div>";
+    else if (p !== MANAGER && S.leave.active) banner = '<div class="sbar info"><div class="msg"><span><b>' + P[MANAGER].name + " 經理請假中</b>（" + leaveRange() + "），你是職務代理人，交給" + P[MANAGER].name + "的待審件會出現在這裡。核准紀錄會記為「" + actorLabel(p) + "」。</span></div></div>" + anno("G2", "代理人和主管用同一個「待我審核」，不另外開入口；主管請假期間，待審件才會出現在這裡。");
+    else if (p !== MANAGER) banner = '<div class="sbar info"><div class="msg"><span>' + P[MANAGER].name + " 經理請假並指定你為職務代理人時，交給" + P[MANAGER].name + "的待審件會出現在這裡。</span></div></div>";
+    var rows = list.map(function (a) {
+      return '<tr><td><button class="link" data-act="ropen" data-id="' + a.id + '">' + h(a.name) + "</button></td><td>" + P[a.owner].name + '<br><small class="mono" style="color:var(--muted)">' + P[a.owner].role + '</small></td><td class="mono" style="font-size:12.5px">' + fmtFull(lastSubmit(a)) + "</td><td>第 " + a.submitCount + " 次</td><td>" + h(actorLabel(reviewerOf(a))) + "</td>" +
+        '<td><button class="btn' + (onLeave ? "" : " primary") + '" data-act="ropen" data-id="' + a.id + '">' + (onLeave ? "檢視" : "審核") + "</button></td></tr>";
+    }).join("");
+    return banner + '<div class="card-box nm"><div class="toolbar"><b style="font-size:16px">待我審核</b><span style="color:var(--muted);font-size:13px">' + list.length + " 件</span></div>" +
+      (list.length ? '<div class="mt-wrap"><table class="mt" style="min-width:640px"><thead><tr><th>AI 助理</th><th>送審人</th><th>送審時間</th><th>送審次數</th><th>審核者</th><th>操作</th></tr></thead><tbody>' + rows + "</tbody></table></div>" : '<div class="empty-state">目前沒有等待審核的助理</div>') +
+      (p === MANAGER && !onLeave ? anno("G3", "選單上的數字和通知中心同步，主管不用進到頁面才知道有幾件。") : "") + "</div>";
+  }
+
+  function viewReviewBot(a, p) {
+    var sec = view().sec || "basic";
+    var mine = a.status === "pending" && reviewerOf(a) === p;
+    var head = '<div class="top"><div style="display:grid;gap:2px"><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:16px">' + h(a.name) + "</b>" + tag(a.status) + "</span>" +
+      '<span style="font-size:13px;color:var(--muted)">' + P[a.owner].name + "（" + P[a.owner].role + "）於 " + fmt(lastSubmit(a)) + " 送出・第 " + a.submitCount + " 次送審</span></div>" +
+      '<button class="btn" data-act="drawer" data-id="' + a.id + '">審核紀錄</button></div>';
+    var diffBox = a.status === "pending" && a.submitCount > 1 ? '<div class="diff"><b>與上次送審相比</b>' + (a.changes.length ? "<ul>" + a.changes.map(function (c) { return "<li>" + h(c) + "</li>"; }).join("") + "</ul>" : "：內容沒有變更") + "</div>" : "";
+    var acts = "";
+    if (mine) {
+      if (S.ui.rejecting === a.id) {
+        acts = '<div class="reject-box"><label for="reject-text"><b>退回原因</b>（必填，' + P[a.owner].name + " 會看到這段文字）</label>" +
+          '<div class="chips"><span class="help">常用原因：</span>' + REASONS.map(function (r, i) { return '<button class="chip" data-act="reason" data-k="' + i + '">' + h(r.split("，")[0]) + "</button>"; }).join("") + "</div>" +
+          '<textarea id="reject-text" placeholder="例如：知識庫缺少首件檢驗程序，請補上後再送。">' + h(S.ui.rejectText) + "</textarea>" +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn danger" id="reject-go" data-act="reject" data-id="' + a.id + '"' + (S.ui.rejectText.trim() ? "" : " disabled") + '>確認退回</button><button class="btn" data-act="reject-cancel">取消</button></div></div>';
+      } else {
+        acts = '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="ask-approve" data-id="' + a.id + '">核准並上架</button><button class="btn" data-act="reject-open" data-id="' + a.id + '">退回</button></div>';
+      }
+    }
+    var info = "";
+    if (a.status !== "pending") info = '<div class="sbar ' + a.status + '"><div class="msg"><span>這件目前是「' + STATUS[a.status] + "」，已不在待審清單。</span></div></div>";
+    else if (!mine) info = '<div class="sbar info"><div class="msg"><span>' + (p === MANAGER ? "你請假中，這件由職務代理人 " + P[reviewerOf(a)].name + " 處理" : "這件由 " + actorLabel(reviewerOf(a)) + " 審核") + "，這裡只能檢視。</span></div></div>";
+    else if (p !== MANAGER) info = '<div class="sbar info"><div class="msg"><span>你以職務代理人身分審核，紀錄會寫成「' + actorLabel(p) + "」。</span></div></div>";
+    return '<div class="rbar nm">' + head + diffBox + acts + "</div>" + info +
+      anno("T5", "下方沿用平台既有的唯讀設定頁（編輯頁的 canUpdate=0 模式），主管看到的是熟悉的助理設定，只多一條審核列。") +
+      '<div class="card-box">' + cfgPage(a, sec, false, true, "") + "</div>";
+  }
+
+  /* 審核 › 請假與職務代理 */
+  function viewLeave() {
+    if (S.leave.active) {
+      return '<div class="card-box nm"><b style="font-size:16px">請假與職務代理</b><div class="sbar info"><div class="msg"><span><b>請假中</b>・' + leaveRange() + "，職務代理人 " + P[S.leave.delegate].name + "。代理期間有 " + queueFor(S.leave.delegate).length + " 件待審在代理人手上。</span></div></div>" +
+        '<div><button class="btn" data-act="leave-end">結束請假</button></div></div>';
+    }
+    var f = S.leaveForm, pending = S.bots.filter(function (a) { return a.status === "pending"; }).length;
+    var opts = ["wang", "zhang"].map(function (k) { return '<option value="' + k + '"' + (f.delegate === k ? " selected" : "") + ">" + P[k].name + "・" + P[k].title + "</option>"; }).join("");
+    return '<div class="card-box nm"><div><b style="font-size:16px">請假與職務代理</b><p class="help" style="font-size:13px;margin-top:4px">請假期間，送給你的審核會交給職務代理人。</p></div>' +
+      '<div class="form-grid">' +
+        '<div class="field"><label for="lv-from">開始日</label><input type="date" id="lv-from" value="' + f.from + '"></div>' +
+        '<div class="field"><label for="lv-to">結束日</label><input type="date" id="lv-to" value="' + f.to + '"></div>' +
+        '<div class="field"><label for="lv-del"><span class="req">*</span>職務代理人</label><select id="lv-del"><option value="">請選擇</option>' + opts + "</select></div>" +
+      "</div>" +
+      '<p class="err" id="lv-err"' + (f.delegate ? " hidden" : "") + ">請先指定職務代理人。請假期間的待審件會交給這位同事。</p>" +
+      '<p style="font-size:13.5px;color:var(--muted)">目前有 ' + pending + " 件待審。請假開始後，這些件會直接出現在代理人的「待我審核」。</p>" +
+      '<div><button class="btn primary" id="lv-save" data-act="leave-save"' + (f.delegate ? "" : " disabled") + ">開始請假</button></div>" +
+      anno("T2", "代理人沒填就無法存檔，從源頭排除「主管不在、也沒人能審」的狀態。名稱用「職務代理」，避開平台既有的「代理排程」。") + "</div>";
+  }
+
+  /* ---------- 抽屜與對話框 ---------- */
+  // 彈窗或抽屜開著時鎖住背景捲動
+  function lockScroll() { document.documentElement.style.overflow = (modal || S.ui.drawer) ? "hidden" : ""; }
+  function renderDrawer() {
+    lockScroll(); queueGuide();
+    var root = document.getElementById("drawer-root");
+    if (!S.ui.drawer) { root.innerHTML = ""; return; }
+    var a = bot(S.ui.drawer);
+    root.innerHTML = '<div class="drawer-back" data-act="drawer-back"><aside class="drawer" role="dialog" aria-label="審核紀錄"><header><h3>審核紀錄・' + h(a.name) + '</h3><button class="btn" data-act="drawer-close">關閉</button></header><ol class="timeline">' +
+      a.history.slice().reverse().map(function (e) { return "<li><time>" + fmt(e.t) + "</time>" + h(e.who) + "・" + h(e.act) + (e.note ? '<div class="note">' + h(e.note) + "</div>" : "") + "</li>"; }).join("") + "</ol></aside></div>";
+  }
+  var modal = null;
+  function openModal(m) { modal = m; renderModal(); }
+  function closeModal() { modal = null; renderModal(); }
+  function renderModal() {
+    lockScroll(); renderConsole(); queueGuide();
+    var root = document.getElementById("modal-root");
+    if (!modal) { root.innerHTML = ""; return; }
+    var a = bot(modal.id), html = "";
+    if (modal.type === "submit") {
+      var rv = reviewerOf(a);
+      html = "<h3>" + (a.submitCount ? "重新送出" : "送出審核") + "</h3><p>送出後設定會鎖定，直到審核完成或你撤回。</p>" +
+        '<dl class="kv"><dt>AI 助理</dt><dd>' + h(a.name) + "</dd><dt>審核者</dt><dd>" + h(P[rv].name + " " + P[rv].title) + (rv !== MANAGER ? '<br><small style="color:var(--muted)">' + P[MANAGER].name + " 經理請假中（" + leaveRange() + "），由職務代理人審核</small>" : "") + "</dd><dt>核准後</dt><dd>系統建立部門版，開放給 " + DEPT_ROLE + "（讀取）</dd>" + (a.submitCount ? "<dt>本次變更</dt><dd>" + h(diff(a).join("、") || "無") + "</dd>" : "") + "</dl>" +
+        anno("T8", "按下送出前就知道誰會審；主管請假時，這裡直接寫出職務代理人。") +
+        '<div class="foot"><button class="btn" data-act="modal-close">取消</button><button class="btn primary" data-act="submit" data-id="' + a.id + '">確認送出</button></div>';
+    } else if (modal.type === "withdraw") {
+      html = "<h3>撤回這件審核？</h3><p>撤回後回到草稿，可以繼續修改。" + h(P[reviewerOf(a)].name) + " 的待審清單會移除這件。</p>" +
+        '<div class="foot"><button class="btn" data-act="modal-close">取消</button><button class="btn primary" data-act="withdraw" data-id="' + a.id + '">撤回</button></div>';
+    } else if (modal.type === "approve") {
+      html = "<h3>核准並上架？</h3><p>核准後系統會自動：</p><ol><li>複製出「部門版-" + h(a.name) + "」</li><li>把部門版的內部對話平台分配給 " + DEPT_ROLE + "（" + DEPT_USERS + " 人），只勾讀取</li><li>通知 " + P[a.owner].name + " 與部門成員</li></ol>" +
+        '<dl class="kv"><dt>原版</dt><dd>留在 ' + P[a.owner].role + "，" + P[a.owner].name + " 可繼續編輯</dd><dt>紀錄</dt><dd>" + h(actorLabel(me())) + " 核准</dd></dl>" +
+        anno("T5", "這三步就是手冊裡擁有者在核准後手動做的事，改成按下核准就完成。") +
+        '<div class="foot"><button class="btn" data-act="modal-close">取消</button><button class="btn primary" data-act="approve" data-id="' + a.id + '">核准並上架</button></div>';
+    } else if (modal.type === "kb") {
+      var avail = KB_LIB.filter(function (k) { return a.kb.indexOf(k) < 0; });
+      html = '<h3>選擇知識庫</h3><p style="font-size:13.5px;color:var(--muted)">選擇要讓「' + h(a.name) + "」引用的知識庫。</p>" +
+        (avail.length ? '<div class="pick">' + avail.map(function (k) { return '<button data-act="kb-pick" data-id="' + a.id + '" data-doc="' + KB_LIB.indexOf(k) + '"><span>' + ICON.book + h(k) + '</span><span style="color:var(--accent);font-size:13px">加入</span></button>'; }).join("") + "</div>" : '<div class="empty-state">可用的知識庫都已加入</div>') +
+        '<div class="foot"><button class="btn" data-act="modal-close">關閉</button></div>';
+    } else if (modal.type === "chat") {
+      html = "<h3>" + h(modal.title || a.name) + '</h3><div class="chat">' + a.chat.map(function (c) { return '<div class="q">' + h(c[0]) + '</div><div class="a">' + h(c[1]) + "</div>"; }).join("") + "</div>" +
+        '<p class="help">示範對話，回應為預先寫好的內容。</p><div class="foot"><button class="btn" data-act="modal-close">關閉</button></div>';
+    }
+    root.innerHTML = '<div class="modal-back" data-act="modal-back"><div class="modal" role="dialog" aria-modal="true">' + html + "</div></div>";
+    var first = root.querySelector(".modal .btn.primary") || root.querySelector(".modal .btn");
+    if (first) first.focus();
+    placeGuide();
+  }
+  var toastTimer;
+  function toast(msg) {
+    var r = document.getElementById("toast-root");
+    r.innerHTML = '<div class="toast" role="status">' + h(msg) + "</div>";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { r.innerHTML = ""; }, 2600);
+  }
+
+  /* ---------- 步驟引導 ---------- */
+  function guideStep() {
+    var a = bot("a1"), p = me(), v = view(), m = modal;
+    function st(sel, shortTxt, detail, isNew) { return { sel: sel, short: shortTxt, detail: detail, isNew: !!isNew }; }
+    function card(person) { return '.ov[data-role="' + roleOf(person).key + '"]'; }
+    if (a.status === "draft" || a.status === "rejected") {
+      var rv0 = reviewerOf(a);
+      if (p !== "lin") return st(card("lin"), "點「林雅婷」切到組員", "點上方成員卡「林雅婷」，切到組員的畫面送出審核。");
+      if (m && m.type === "submit") return st('.modal [data-act="submit"]', "按「確認送出」", "確認視窗已寫明這件會由誰審核，按「確認送出」。", true);
+      if (m && m.type === "kb") return st(".pick button", "加入「首件檢驗程序」", a.status === "rejected" ? "主管退回時要求補上首件檢驗程序，從清單加入它。" : "從清單加入「首件檢驗程序」，把漏掉的資料補上。");
+      if (v.page !== "bot" || v.id !== "a1") return v.page === "bots"
+        ? st('.link[data-act="open"][data-id="a1"]', "打開這個助理", "在 AI 助理列表打開「檢驗 SOP 問答助理」。")
+        : st('[data-act="nav"][data-page="bots"]', "進入「AI 助理」", "從選單進入「AI 助理」，打開「檢驗 SOP 問答助理」。");
+      var needKb = a.submitCount > 0 && a.kb.indexOf("首件檢驗程序") < 0;
+      if (needKb && v.sec !== "kb") return st('[data-act="sec"][data-sec="kb"]', "到「知識庫設定」", a.status === "rejected" ? "依狀態列的退回原因，到設定目錄的「知識庫設定」補資料。" : "撤回後回到草稿，到設定目錄的「知識庫設定」補上漏掉的資料。");
+      if (needKb) return st('[data-act="kb-add"]', "按「選擇知識庫」", "按「選擇知識庫」，加入「首件檢驗程序」。");
+      var btn = a.submitCount ? "重新送出" : "送出審核";
+      return st('[data-act="ask-submit"]', "按「" + btn + "」",
+        (a.submitCount ? "資料補齊了。" : "") + "按右下角「" + btn + "」，交給 " + actorLabel(rv0) + " 審核。" +
+        (rv0 !== MANAGER ? "主管請假中，會由職務代理人審核。" : (!S.leave.active && !a.submitCount ? "也可以先打開「主管請假」，看審核者怎麼改變。" : "")), true);
+    }
+    if (a.status === "pending") {
+      var rv = reviewerOf(a), who = P[rv].name;
+      if (S.scene === "withdraw" && p === "lin") {
+        if (m && m.type === "withdraw") return st('.modal [data-act="withdraw"]', "按「撤回」", "確認撤回。撤回後回到草稿，可以繼續修改。", true);
+        if (v.page === "bot" && v.id === "a1") return st('[data-act="ask-withdraw"]', "按「撤回」補資料", "送出後才發現漏了「首件檢驗程序」。按右下角「撤回」，回到草稿補資料。", true);
+      }
+      if (p !== rv) {
+        var d = p === "lin" ? "已送出。點上方成員卡「" + who + "」切到審核者；要補資料的話，也可以先按「撤回」。"
+          : (p === MANAGER && S.leave.active ? "你在請假，這件由職務代理人 " + who + " 處理。點上方成員卡「" + who + "」。" : "點上方成員卡「" + who + "」，切到審核者的畫面。");
+        return st(card(rv), "點「" + who + "」切到審核者", d);
+      }
+      if (m && m.type === "approve") return st('.modal [data-act="approve"]', "按「核准並上架」", "確認視窗列出系統會自動做的三件事，按「核准並上架」。", true);
+      if (v.page === "rbot" && v.id === "a1") {
+        if (S.ui.rejecting === "a1") return st(".reject-box", "填寫退回原因", "點常用原因或自己填寫，再按「確認退回」。原因會顯示在組員的狀態列。", true);
+        return st('[data-act="ask-approve"]', "核准或退回", "看完設定後按「核准並上架」；要退回就按「退回」並填寫原因。", true);
+      }
+      if (v.page === "review") return st('td .btn[data-act="ropen"]', "按「審核」", "在「待我審核」按「審核」打開這一件。", true);
+      return st('[data-act="nav"][data-page="review"]', "進入「待我審核」", "從選單進入「審核 › 待我審核」。" + (rv !== MANAGER ? "主管請假中，代理人也用同一個入口。" : ""), true);
+    }
+    if (p !== "zhang") return st(card("zhang"), "點「張家豪」看同事畫面", "已核准上架。點上方成員卡「張家豪」，看部門同事在 Agent 市集看到什麼。");
+    if (m && m.type === "chat") return st(null, "流程完成", "流程完成。可以按「重置示範」，或選其他情境再走一次。");
+    if (v.page !== "market") return st('[data-act="nav"][data-page="market"]', "進入「Agent 市集」", "從選單進入「Agent 市集」。");
+    return st(function () { var t = document.querySelector(".agent .tag-new"); return t && t.closest(".agent").querySelector('[data-act="chat"]'); },
+      "按「開始對話」", "部門版已出現在「組織自建」並標 NEW，按「開始對話」試用。", true);
+  }
+  function guideTarget(g) { return typeof g.sel === "function" ? g.sel() : (g.sel ? document.querySelector(g.sel) : null); }
+  // 目標是否真的在可見範圍內（含表格、側欄這類橫向捲動容器）
+  function inView(el) {
+    var r = el.getBoundingClientRect();
+    if (!r.width && !r.height) return null;
+    if (r.bottom <= 0) return "up";
+    if (r.top >= window.innerHeight) return "down";
+    for (var a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+      var cs = getComputedStyle(a);
+      if (cs.overflowX !== "visible" && a.scrollWidth > a.clientWidth) {
+        var ar = a.getBoundingClientRect();
+        if (r.right > ar.right + 1 || r.left < ar.left - 1) return "side";
+      }
+    }
+    return "ok";
+  }
+  function placeGuide() {
+    var bub = document.getElementById("guide"), old = document.querySelectorAll(".guide-target");
+    for (var i = 0; i < old.length; i++) old[i].classList.remove("guide-target");
+    // 引導關閉、不在原型頁，或通知中心／審核紀錄開著時，不顯示
+    if (!S.annos || document.getElementById("tab-proto").hidden || S.ui.bell || S.ui.drawer) { bub.hidden = true; return; }
+    var g = guideStep(), el = guideTarget(g);
+    if (modal && el && !el.closest(".modal")) { bub.hidden = true; return; }
+    var head = '<span class="g-head"><span class="g-next">下一步</span>' + (g.isNew ? '<span class="g-new">新增功能</span>' : "") + "</span><span>" + h(g.short) + "</span>";
+    var where = el ? inView(el) : null;
+    if (el && where) el.classList.add("guide-target");
+    bub.hidden = false;
+    if (where !== "ok") {
+      // 目標不在畫面內（例如要往上切換角色）：固定在右下角，附方向與「跳過去」
+      var dir = where === "up" ? "在畫面上方" : where === "down" ? "在畫面下方" : where === "side" ? "在橫向捲動區外" : "";
+      bub.className = "floating";
+      bub.innerHTML = head + (dir ? '<span class="g-dir">' + dir + '</span><button class="g-jump" data-act="guide-go">跳過去</button>' : "");
+      bub.style.top = bub.style.left = "";
+      return;
+    }
+    bub.className = "";
+    bub.innerHTML = head;
+    var r = el.getBoundingClientRect(), bw = bub.offsetWidth, bh = bub.offsetHeight, vw = document.documentElement.clientWidth;
+    var above = r.top - bh - 12, below = r.bottom + 12;
+    var preferAbove = !!el.closest("#console") && above > 8;
+    var top = preferAbove ? above : below;
+    if (!preferAbove && below + bh > window.innerHeight - 8 && above > 8) top = above;
+    var left = Math.min(Math.max(8, r.left + r.width / 2 - bw / 2), vw - bw - 8);
+    bub.style.top = (top + window.scrollY) + "px";
+    bub.style.left = (left + window.scrollX) + "px";
+  }
+  var guideRaf = 0;
+  function queueGuide() { if (guideRaf) return; guideRaf = requestAnimationFrame(function () { guideRaf = 0; placeGuide(); }); }
+  document.addEventListener("scroll", queueGuide, { passive: true, capture: true });
+  window.addEventListener("resize", queueGuide);
+
+  /* ---------- 繪製與事件 ---------- */
+  function render() {
+    document.body.classList.toggle("show-anno", !!S.annos);
+    renderConsole(); renderMP(); renderDrawer(); save(); placeGuide();
+  }
+  function revealMP() {
+    var el = document.getElementById("mp"), r = el.getBoundingClientRect();
+    if (r.top > window.innerHeight * 0.6 || r.top < 0) {
+      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    }
+  }
+  function go(page, id, sec) { var b = S.ui.bellTab; S.views[S.role] = { page: page, id: id || null, sec: sec || "basic" }; S.ui = freshUI(); S.ui.bellTab = b; }
+
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-act]");
+    if (!t) { if (S.ui.bell && !e.target.closest(".notif")) { S.ui.bell = false; renderMP(); } return; }
+    var act = t.getAttribute("data-act"), id = t.getAttribute("data-id"), p = me();
+    switch (act) {
+      case "role": setRole(t.getAttribute("data-role")); break;
+      case "scene": SCENES[t.getAttribute("data-scene")](); closeModal(); toast("已載入情境"); render(); revealMP(); return;
+      case "reset": S = seed(); S.ui = freshUI(); closeModal(); toast("示範已重置"); break;
+      case "nav": go(t.getAttribute("data-page")); break;
+      case "open": go("bot", id); break;
+      case "ropen": go("rbot", id); break;
+      case "sec": view().sec = t.getAttribute("data-sec"); S.ui.rejecting = null; break;
+      case "bell": S.ui.bell = !S.ui.bell; renderMP(); return;
+      case "btab": S.ui.bellTab = t.getAttribute("data-tab"); renderMP(); return;
+      case "readall": S.notes.forEach(function (n) { if (n.to === p) n.read = true; }); S.ui.bell = true; break;
+      case "note":
+        var note = S.notes.filter(function (n) { return n.id === id; })[0];
+        if (!note) break;
+        note.read = true;
+        if (note.ref && note.ref.charAt(0) === "d") go("market");
+        else if (note.ref) { var na = bot(note.ref); if (na.owner === p) go("bot", na.id); else if (hasReviewMenu(p) && na.status === "pending") go("rbot", na.id); else go("market"); }
+        else if (hasReviewMenu(p)) go("review");
+        else S.ui.bell = false;
+        break;
+      case "guide-go": var gt = guideTarget(guideStep()); if (gt) gt.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center", inline: "nearest" }); return;
+      case "official": toast("示範不含官方內建 Agent"); return;
+      case "nocreate": toast("示範從已建立的助理開始；建立流程沿用平台現有彈窗"); return;
+      case "save": bot(view().id).updatedAt = now(); toast("已儲存"); break;
+      case "drawer": S.ui.drawer = id; renderDrawer(); return;
+      case "drawer-close": S.ui.drawer = null; renderDrawer(); return;
+      case "drawer-back": if (e.target === t) { S.ui.drawer = null; renderDrawer(); } return;
+      case "ask-submit": openModal({ type: "submit", id: id }); return;
+      case "ask-withdraw": openModal({ type: "withdraw", id: id }); return;
+      case "ask-approve": openModal({ type: "approve", id: id }); return;
+      case "chat":
+        var cb = bot(id), cp = S.copies.filter(function (c) { return c.src === id; })[0];
+        openModal({ type: "chat", id: id, title: P[p].builder ? cb.name : (cp ? cp.name : cb.name) }); return;
+      case "modal-close": closeModal(); return;
+      case "modal-back": if (e.target === t) closeModal(); return;
+      case "submit": doSubmit(id); closeModal(); toast("已送出，等待 " + actorLabel(reviewerOf(bot(id))) + " 審核"); break;
+      case "withdraw": doWithdraw(id); closeModal(); toast("已撤回，回到草稿"); break;
+      case "approve": doApprove(id, p); closeModal(); go("review"); toast("已核准，部門版已開放給 " + DEPT_ROLE); break;
+      case "reject-open": S.ui.rejecting = id; S.ui.rejectText = ""; renderMP(); var ta = document.getElementById("reject-text"); if (ta) ta.focus(); return;
+      case "reject-cancel": S.ui.rejecting = null; break;
+      case "reason": S.ui.rejectText = REASONS[+t.getAttribute("data-k")]; renderMP(); var rt = document.getElementById("reject-text"); if (rt) rt.focus(); return;
+      case "reject":
+        var txt = S.ui.rejectText.trim(); if (!txt) return;
+        doReject(id, p, txt); go("review"); toast("已退回，" + P[bot(id).owner].name + " 會收到通知"); break;
+      case "kb-add": openModal({ type: "kb", id: id }); return;
+      case "kb-pick": bot(id).kb.push(KB_LIB[+t.getAttribute("data-doc")]); closeModal(); toast("已加入知識庫"); break;
+      case "kb-rm": bot(id).kb.splice(+t.getAttribute("data-k"), 1); break;
+      case "leave-save":
+        if (!S.leaveForm.delegate) return;
+        startLeave(S.leaveForm.from, S.leaveForm.to, S.leaveForm.delegate); toast("請假已開始，待審件交給 " + P[S.leave.delegate].name); break;
+      case "leave-end": endLeave(); toast("請假結束，待審件回到你的清單"); break;
+      default: return;
+    }
+    render();
+  });
+
+  document.addEventListener("input", function (e) {
+    var t = e.target, f = t.getAttribute && t.getAttribute("data-field");
+    if (f) { var a = bot(view().id); if (a) { a[f] = t.value; save(); } return; }
+    if (t.id === "reject-text") { S.ui.rejectText = t.value; var b = document.getElementById("reject-go"); if (b) b.disabled = !t.value.trim(); return; }
+    if (t.id === "lv-from") { S.leaveForm.from = t.value || S.leaveForm.from; save(); return; }
+    if (t.id === "lv-to") { S.leaveForm.to = t.value || S.leaveForm.to; save(); return; }
+  });
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.id === "lv-del") { S.leaveForm.delegate = t.value; var s = document.getElementById("lv-save"), er = document.getElementById("lv-err"); if (s) s.disabled = !t.value; if (er) er.hidden = !!t.value; save(); }
+    if (t.id === "leave-toggle") {
+      if (t.checked) { startLeave("2026-10-13", "2026-10-16", S.leaveForm.delegate || "wang"); toast(P[MANAGER].name + " 開始請假，職務代理人 " + P[S.leave.delegate].name); }
+      else { endLeave(); toast("請假結束"); }
+      render();
+    }
+    if (t.id === "anno-toggle") { S.annos = t.checked; render(); }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (modal) closeModal();
+    else if (S.ui.drawer) { S.ui.drawer = null; renderDrawer(); }
+    else if (S.ui.bell) { S.ui.bell = false; renderMP(); }
+  });
+
+  /* ---------- 文件頁籤 ---------- */
+  var TABS = ["goals", "flow", "proto", "tradeoffs"];
+  function showTab(name) {
+    if (TABS.indexOf(name) < 0) name = "flow";
+    TABS.forEach(function (k) {
+      document.getElementById("tab-" + k).hidden = k !== name;
+      document.querySelector('.tabs [data-tab="' + k + '"]').setAttribute("aria-selected", k === name);
+    });
+  }
+  document.querySelectorAll(".tabs [data-tab]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var k = b.getAttribute("data-tab"); showTab(k); placeGuide();
+      try { history.replaceState(null, "", "#" + k); } catch (err) {}
+    });
+  });
+  showTab((location.hash || "").slice(1) || "flow");
+  render();
+})();
+</script>
